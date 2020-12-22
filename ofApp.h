@@ -1,7 +1,8 @@
 #pragma once
 
 #include "ofMain.h"
-
+#include "ofxImGui.h"
+#include "ofxSVG.h"
 class ofApp : public ofBaseApp{
 
 	public:
@@ -22,6 +23,10 @@ class ofApp : public ofBaseApp{
 		void gotMessage(ofMessage msg);
 		void generateEdge();
 		void drawEdges();
+		void loadKnobs();
+		vector<ofPolyline> knobs;
 		ofPolyline addKnob(ofPolyline& edge);
 		vector<ofPolyline> edges;
+		ofxImGui::Gui gui;
+		
 };
