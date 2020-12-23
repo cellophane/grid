@@ -28,5 +28,6 @@ class ofApp : public ofBaseApp{
 		ofPolyline addKnob(ofPolyline& edge);
 		vector<ofPolyline> edges;
 		ofxImGui::Gui gui;
-		
+		vector<ofPath> knobPaths;
+		vector<ofxSVG> knobsvgs;
 };
