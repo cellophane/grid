@@ -30,4 +30,6 @@ class ofApp : public ofBaseApp{
 		ofxImGui::Gui gui;
 		vector<ofPath> knobPaths;
 		vector<ofxSVG> knobsvgs;
+		void addCircle(float x, float y, float radius);
+		void intersections();
 };
