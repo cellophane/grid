@@ -3,12 +3,22 @@
 #include "ofMain.h"
 #include "ofxImGui.h"
 #include "ofxSVG.h"
+typedef std::tuple<int, int, int> i3tuple;
 class ofApp : public ofBaseApp{
 
 	public:
+		ofFbo cBuffer;
 		void setup();
+		bool floodFillTest(i3tuple circle, vector<i3tuple>& circles);
+		bool testCircle(i3tuple circle, vector<i3tuple>& circles);
+		float circleOverlapChord(const i3tuple c1, const i3tuple c2);
+		float circleOverlap(i3tuple c1, i3tuple c2);
+		void addLotsofCircles();
+		void packCircles();
 		void update();
 		void draw();
+
+		void drawKnobs();
 
 		void keyPressed(int key);
 		void keyReleased(int key);
@@ -30,6 +40,7 @@ class ofApp : public ofBaseApp{
 		ofxImGui::Gui gui;
 		vector<ofPath> knobPaths;
 		vector<ofxSVG> knobsvgs;
-		void addCircle(float x, float y, float radius);
+		void addCircle(i3tuple circle);
 		void intersections();
+		vector<ofPath> intersections(ofPath newCurve);
 };
