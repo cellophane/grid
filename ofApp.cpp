@@ -5,6 +5,7 @@ typedef std::tuple<int, int, int> i3tuple;
 vector<i3tuple> circles;
 //--------------------------------------------------------------
 void ofApp::setup() {
+	srand(time(NULL));
 	addLotsofCircles();
 	loadedKnobs = true;
 	loadKnobs();
@@ -12,13 +13,12 @@ void ofApp::setup() {
 	intersections();
 
 	vector<ofPolyline> newEdges;
-	/*
-	for (auto edge : edges) {
-		auto e = addKnob(edge);
+	for ( int i = 0;i<edges.size();++i){
+		auto e = addKnob(i);
 		newEdges.push_back(e);
 	}
 	edges = newEdges;
-	*/
+	
 }
 //circle in format x,y,R
 bool ofApp::floodFillTest(i3tuple circ, vector<i3tuple>& circles){
@@ -64,25 +64,38 @@ bool ofApp::floodFillTest(i3tuple circ, vector<i3tuple>& circles){
 float distance(int x1, int x2, int y1, int y2) {
 	return sqrt(pow((x1 - x2), 2) + pow((y1 - y2), 2));
 }
-bool overlapped(i3tuple c1, i3tuple c2) {
+int ofApp::overlapped(i3tuple c1, i3tuple c2) {
 	float d = sqrt(pow((get<0>(c2) - get<0>(c1)), 2) + pow((get<1>(c2) - get<1>(c1)), 2));
 	float r = (float)get<2>(c1);
 	float R = (float)get<2>(c2);
-	if (d > min(r, R) && d+20 < r + R) {
-		return true;
+	float A = circleOverlap(c1, c2);
+	if (A > 0 && A < 72 * 72) {
+		return -1;
 	}
-	return false;
+	if (abs(d - (r + R)) < 30) {
+		return -1;
+	}
+	if (d > max(r, R) && d < r + R) {
+		return 1;
+	}
+	return 0;
 }
 bool ofApp::testCircle(i3tuple circle, vector<i3tuple>& circles) {
-	float overlap = 0;
+	int overlap = 0;
+	bool ok = false;
 	for (auto circ : circles) {
-		if (overlapped(circ, circle)){
-			overlap = true;
+		overlap = overlapped(circ, circle);
+		if (overlap == -1) {
+			ok = false;
 			break;
-			}
+		}
+		if (overlap == 1) {
+			ok = true;
+		}
+
 		}
 	
-	if(overlap){
+	if(ok){
 	auto oldEdges = edges;
 	addCircle(circle);
 	intersections();
@@ -126,7 +139,9 @@ void ofApp::addLotsofCircles() {
 	addCircle(circle);
 	int numMed = rand() % 3 + 2;
 	int added = 0;
-	for (int i = 0; i < 10000; ++i) {
+	int i = 0;
+	while (i < 5000) {
+		i += 1;
 		int medR = float(float(100 + rand() % 700) / 1000. * float(bigR));
 		int theta = rand() % 360;
 		float r = sqrt(static_cast <float> (rand()) / static_cast <float> (RAND_MAX));
@@ -144,7 +159,8 @@ void ofApp::addLotsofCircles() {
 				 if (ok) {
 					 addCircle(circle);
 					 circles.push_back(circle);
-					 added += 1;
+					 cout << "edges : " << edges.size() << endl;
+					 i = 0;
 				 }
 			}
 		}
@@ -321,24 +337,23 @@ ofPoint segsegintersect(const ofPoint & a, const ofPoint & b, const ofPoint & c,
 bool sortCutPoints(const pair<int,ofPoint>& a, const pair<int, ofPoint>& b) {
 	return (a.first < b.first);
 }
-vector<ofPath> ofApp::intersections(ofPath newCurve) 
+bool ofApp::intersections(ofPolyline & e1) 
 	{
-	map<int, vector<pair<int,ofPoint>>> cutPointMap;
-	cout << "edges : " << edges.size() << endl;
-	for (int i = 0; i < edges.size(); ++i) {
 		
-		auto e1 = &edges[i];
-		auto bbox1 = e1->getBoundingBox();
+		auto bbox1 = e1.getBoundingBox();
 
-		for (int j = i+1; j < edges.size(); ++j) {
+		for (int j =0; j < edges.size(); ++j) {
 			auto e2 = &edges[j];
 			auto bbox2 = e2->getBoundingBox();
+			if (e1.getVertices()[2] == e2->getVertices()[2]) {
+				continue;
+			}
 			if (bbox1.intersects(bbox2)) {
-				auto v1 = e1->getVertices();
+				auto v1 = e1.getVertices();
 				auto v2 = e2->getVertices();
 				int extra1 = 1;
 				int extra2 = 1;
-				if (e1->isClosed()) {
+				if (e1.isClosed()) {
 					extra1 = 0;
 				}
 				if (e2->isClosed()) {
@@ -354,22 +369,7 @@ vector<ofPath> ofApp::intersections(ofPath newCurve)
 						ofPoint intersection = segsegintersect(va, vb, vc, vd);
 						if (intersection.x != -10000 && intersection.y != -10000) {
 							
-							if (cutPointMap.count(i)) {
-								cutPointMap[i].push_back(make_pair(k,intersection));
-							}
-							else {
-								vector<pair<int,ofPoint>> p;
-								p.push_back(make_pair(k,intersection));
-								cutPointMap[i] = p;
-							}
-							if (cutPointMap.count(j)) {
-								cutPointMap[j].push_back(make_pair(l,intersection));
-							}
-							else {
-								vector<pair<int,ofPoint>> p;
-								p.push_back(make_pair(l,intersection));
-								cutPointMap[j] = p;
-							}
+							return true;
 						}
 
 					}
@@ -379,91 +379,12 @@ vector<ofPath> ofApp::intersections(ofPath newCurve)
 
 
 		}
-
+		return false;
 	}
 	
-	std::map<int, vector<pair<int,ofPoint>>>::iterator it = cutPointMap.begin();
-	cout << "cut point map : " << endl;
-	while (it != cutPointMap.end()) {
-		int idx = it->first;
-		auto points = it->second;
-		sort(points.begin(), points.end(), sortCutPoints);
-		it++;
-	}
-	it = cutPointMap.begin();
-	while (it != cutPointMap.end()) {
-		int idx = it->first;
-		auto points = it->second;
-		it++;
-		sort(points.begin(), points.end(),sortCutPoints);
-		auto e = edges[idx];
-		auto vertices = e.getVertices();
-		
-		if (e.isClosed()) {
-			ofPolyline newEdge;
-			auto p1 = points.back();
-			auto p2 = points[0];
-			newEdge.addVertex(p1.second);
-			for (int i = p1.first; i < vertices.size(); ++i) {
-				newEdge.addVertex(vertices[i]);
-			}
-			for (int i = 0; i <= p2.first; ++i) {
-				newEdge.addVertex(vertices[i]);
-			}
-			newEdge.addVertex(p2.second);
-			edges.push_back(newEdge);
-		}
-		else {
-			ofPolyline newEdge;
-			auto p1 = points[0];
-			
-			for (int i = 0; i < points[0].first; ++i) {
-				newEdge.addVertex(vertices[i]);
-			}
-			newEdge.addVertex(p1.second);
-			edges.push_back(newEdge);
-		}
-		
-		for (int s = 0;  s < points.size()-1; ++s) {
-			ofPolyline newEdge;
-			auto p1 = points[s];
-			auto p2 = points[s + 1];
-			newEdge.addVertex(p1.second);
-			for (int x = p1.first; x < p2.first; ++x) {
-				newEdge.addVertex(vertices[x]);
-			}
-			newEdge.addVertex(p2.second);
-			edges.push_back(newEdge);
-		}
-		if(!e.isClosed()){
-		ofPolyline newEdge;
-		newEdge.addVertex(points.back().second);
-		for (int s = points.back().first; s < vertices.size(); ++s) {
-			newEdge.addVertex(vertices[s]);
-		}
-		edges.push_back(newEdge);
-		}
-
-	}
-	it = cutPointMap.begin();
-	vector <int> indices;
-	while (it != cutPointMap.end()) {
-		int idx = it->first;
-		indices.push_back(idx);
-		it++;
-	}
-	sort(indices.begin(), indices.end());
-	reverse(indices.begin(), indices.end());
-	for (auto i : indices) {
-		edges.erase(edges.begin() + i);
-	}
-
-	vector <ofPath> intersectionEdges;
-	return intersectionEdges;
-}
+	
 void ofApp::intersections() {
 	map<int, vector<pair<int, ofPoint>>> cutPointMap;
-	cout << "edges : " << edges.size() << endl;
 	for (int i = 0; i < edges.size(); ++i) {
 		auto e1 = &edges[i];
 		auto bbox1 = e1->getBoundingBox();
@@ -658,10 +579,16 @@ void ofApp::addCircle(i3tuple circle) {
 	c.close();
 	edges.push_back(c);
 }
-ofPolyline ofApp::addKnob(ofPolyline& edge) {
+
+ofPolyline ofApp::addKnob(int index) {
+	auto edge1 = edges[index];
 	ofLog(OF_LOG_NOTICE, "knobs");
-	edge = edge.getResampledByCount(1000);
-	cout << "knobs";
+	bool placed = false;
+	for (int k = 0; k < 1000; ++k){
+		if (k == index) {
+			continue;
+	}
+	ofPolyline edge = edge1.getResampledByCount(1000);
 	int i = rand() % knobs.size();
 	ofPolyline knob = knobs[i];
 	auto v = knob.getVertices();
@@ -670,22 +597,28 @@ ofPolyline ofApp::addKnob(ofPolyline& edge) {
 		vertices.push_back(a);
 		
 	}
-
+	if (vertices.size() < 10) {
+		continue;
+	}
+	if (rand() % 2) {
+		reverse(vertices.begin(), vertices.end());
+	}
 	int n = vertices.size();
 	ofPoint a1 = vertices[0];
 	ofPoint a2 = vertices[n-1];
 	
-
+	float fuzz = (static_cast <float> (rand()) / static_cast <float> (RAND_MAX)-.5)*.2;
 	float midIndex = edge.getIndexAtPercent(.5);
 	float midLength = edge.getLengthAtIndexInterpolated(midIndex);
 	float d = vertices[0].distance(vertices[n-1]);
-
+	if (d < 10) {
+		continue;
+	}
 	ofPoint p1 = edge.getPointAtLength(midLength - d / 2);
 	ofPoint p2 = edge.getPointAtLength(midLength + d / 2);
 	float i1 = edge.getIndexAtLength(midLength - d / 2);
 	float i2 = edge.getIndexAtLength(midLength + d / 2);
-	cout << i1 << "first seg idx" << endl;
-	cout << i2 << "second seg idx" << endl;
+
 	//ofLog(OF_LOG_NOTICE, "POINTS");
 	//ofLog(OF_LOG_NOTICE, ofToString(p1[0]) + " " + ofToString(p1[1]));
 	//ofLog(OF_LOG_NOTICE, ofToString(p2[0]) + " " + ofToString(p2[1]));
@@ -701,7 +634,7 @@ ofPolyline ofApp::addKnob(ofPolyline& edge) {
 	float rotAngle = -atan2((p2.x - p1.x) * (a2.y - a1.y) - (p2.y - p1.y) * (a2.x - a1.x),
 		(p2.x - p1.x) * (a2.x - a1.x) + (p2.y - p1.y) * (a2.y - a1.y));
 
-	ofLog(OF_LOG_NOTICE, "Rotation angle " + ofToString(rotAngle));
+	//ofLog(OF_LOG_NOTICE, "Rotation angle " + ofToString(rotAngle));
 	for (int i = 0; i < n; ++i) {
 		vertices[i]=vertices[i].rotateRad(rotAngle, ofVec3f(0, 0, 1));
 	}
@@ -721,13 +654,17 @@ ofPolyline ofApp::addKnob(ofPolyline& edge) {
 		//ofLog(OF_LOG_NOTICE, ofToString(vertices[i][0]) + " " + ofToString(vertices[i][1]));
 	
 	}
-	cout << "i2 ceil " << i2 << "... newverts size" << newVerts.size() << endl;
+	
 	for (int i = ceil(i2); i < edgeVerts.size(); ++i) {
 		newEdge.addVertex(edgeVerts[i]);
 	}
+	if(!intersections(newEdge.getResampledByCount(100))){
+		cout << "success" << endl;
 	return newEdge;
-	
-
+	}
+	}
+	cout << "failure" << endl;
+	return edge1.getResampledByCount(500);
 }
 
 //--------------------------------------------------------------

@@ -10,6 +10,7 @@ class ofApp : public ofBaseApp{
 		ofFbo cBuffer;
 		void setup();
 		bool floodFillTest(i3tuple circle, vector<i3tuple>& circles);
+		int overlapped(i3tuple c1, i3tuple c2);
 		bool testCircle(i3tuple circle, vector<i3tuple>& circles);
 		float circleOverlapChord(const i3tuple c1, const i3tuple c2);
 		float circleOverlap(i3tuple c1, i3tuple c2);
@@ -35,12 +36,12 @@ class ofApp : public ofBaseApp{
 		void drawEdges();
 		void loadKnobs();
 		vector<ofPolyline> knobs;
-		ofPolyline addKnob(ofPolyline& edge);
+		ofPolyline addKnob(int i);
 		vector<ofPolyline> edges;
 		ofxImGui::Gui gui;
 		vector<ofPath> knobPaths;
 		vector<ofxSVG> knobsvgs;
 		void addCircle(i3tuple circle);
 		void intersections();
-		vector<ofPath> intersections(ofPath newCurve);
+		bool intersections(ofPolyline & testEdge);
 };
