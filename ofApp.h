@@ -7,6 +7,7 @@ typedef std::tuple<int, int, int> i3tuple;
 class ofApp : public ofBaseApp{
 
 	public:
+		ofxImGui::Gui gui;
 		ofFbo cBuffer;
 		void setup();
 		bool floodFillTest(i3tuple circle, vector<i3tuple>& circles);
@@ -37,11 +38,12 @@ class ofApp : public ofBaseApp{
 		void loadKnobs();
 		vector<ofPolyline> knobs;
 		ofPolyline addKnob(int i);
+		void addKnobs();
 		vector<ofPolyline> edges;
-		ofxImGui::Gui gui;
 		vector<ofPath> knobPaths;
 		vector<ofxSVG> knobsvgs;
 		void addCircle(i3tuple circle);
 		void intersections();
 		bool intersections(ofPolyline & testEdge, int index);
+		void addColor();
 };

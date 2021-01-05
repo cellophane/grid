@@ -2,24 +2,29 @@
 ofPolyline knob;
 bool loadedKnobs = false;
 typedef std::tuple<int, int, int> i3tuple;
+int maxIter = 500;
 vector<i3tuple> circles;
 //--------------------------------------------------------------
 void ofApp::setup() {
+	gui.setup();
 	srand(time(NULL));
-	addLotsofCircles();
+	//addLotsofCircles();
 	loadedKnobs = true;
 	loadKnobs();
 	//knob = addKnob(edges[0]);
-	intersections();
+	//intersections();
 
 	vector<ofPolyline> newEdges;
-	for ( int i = 0;i<edges.size();++i){
+
+	//edges = newEdges;
+	
+}
+void ofApp::addKnobs() {
+	for (int i = 0; i < edges.size(); ++i) {
 		auto e = addKnob(i);
 		edges[i] = e;
 		//newEdges.push_back(e);
 	}
-	//edges = newEdges;
-	
 }
 //circle in format x,y,R
 bool ofApp::floodFillTest(i3tuple circ, vector<i3tuple>& circles){
@@ -147,7 +152,7 @@ void ofApp::addLotsofCircles() {
 	int smallPacked = 0;
 	int tinyPacked = 0;
 	int medR = 0;
-	while (i < 5000) {
+	while (i < maxIter) {
 		i += 1;
 		if (largePacked < 2) {
 			medR = float(float(400 + rand() % 300) / 1000. * float(bigR));
@@ -272,6 +277,10 @@ void ofApp::packCircles() {
 		}
 	}
 }
+//-----------------------------------
+void ofApp::addColor() {
+
+}
 //--------------------------------------------------------------
 void ofApp::update(){
 
@@ -281,8 +290,29 @@ void ofApp::update(){
 void ofApp::draw(){
 
 	drawEdges();
+	gui.begin();
+	{
+		if (ImGui::Button("Clear")) {
+			edges.clear();
+			circles.clear();
 
+		}
+		ImGui::SliderInt("Max iterations", &maxIter, 50, 5000);
+		if (ImGui::Button("Add Circles")) {
+			addLotsofCircles();
+		}
+		if (ImGui::Button("Calculate Intersections")) {
+			intersections();
+		}
 
+		if (ImGui::Button("Add knobs")) {
+			addKnobs();
+		}
+		if (ImGui::Button("Add Color")) {
+			addColor();
+		}
+	}
+	gui.end();
 }
 void ofApp::drawKnobs() {
 	int x = 0;
@@ -620,14 +650,18 @@ ofPolyline ofApp::addKnob(int index) {
 	auto edge1 = edges[index];
 	ofLog(OF_LOG_NOTICE, "knobs");
 	bool placed = false;
-	for (int k = 0; k < 1000; ++k){
-	
-	ofPolyline edge = edge1.getResampledByCount(100);
+	for (int k = 0; k < 100; ++k){
+		
+	ofPolyline edge = edge1.getResampledByCount(300);
 	int i = rand() % knobs.size();
 	ofPolyline knob = knobs[i];
 	auto v = knob.getVertices();
 	vector<ofPoint> vertices;
+	bool flip = rand() % 2;
 	for (auto a : v) {
+		if (flip) {
+			a.y = -a.y;
+		}
 		vertices.push_back(a);
 		
 	}
@@ -641,7 +675,7 @@ ofPolyline ofApp::addKnob(int index) {
 	ofPoint a1 = vertices[0];
 	ofPoint a2 = vertices[n-1];
 	
-	float fuzz = (static_cast <float> (rand()) / static_cast <float> (RAND_MAX)-.5)*.2;
+	float fuzz = (static_cast <float> (rand()) / static_cast <float> (RAND_MAX)-.5)*.3;
 	float midIndex = edge.getIndexAtPercent(.5+fuzz);
 	float midLength = edge.getLengthAtIndexInterpolated(midIndex);
 	float d = vertices[0].distance(vertices[n-1]);
@@ -694,11 +728,19 @@ ofPolyline ofApp::addKnob(int index) {
 	}
 	ofPolyline testRect;
 	auto knobRec = testKnob.getBoundingBox();
-	knobRec.scale(1.2);
+	cout << "before " << knobRec.getArea() << "... " << knobRec.getCenter() << endl;
+	knobRec.standardize();
+	knobRec.scaleFromCenter(1.25);
+	cout << "after " << knobRec.getArea() << "... " << knobRec.getCenter() << endl;
 	testRect.addVertex(knobRec.getTopLeft());
 	testRect.addVertex(knobRec.getTopRight());
 	testRect.addVertex(knobRec.getBottomRight());
 	testRect.addVertex(knobRec.getBottomLeft());
+	testRect.close();
+	testRect = testRect.getResampledByCount(100);
+	glFinish();
+	glFlush();
+	testKnob.clear();
 	if(!intersections(testRect,index)){
 	if(!intersections(newEdge, index)){
 		cout << "success" << endl;
