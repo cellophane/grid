@@ -15,9 +15,10 @@ void ofApp::setup() {
 	vector<ofPolyline> newEdges;
 	for ( int i = 0;i<edges.size();++i){
 		auto e = addKnob(i);
-		newEdges.push_back(e);
+		edges[i] = e;
+		//newEdges.push_back(e);
 	}
-	edges = newEdges;
+	//edges = newEdges;
 	
 }
 //circle in format x,y,R
@@ -84,7 +85,8 @@ bool ofApp::testCircle(i3tuple circle, vector<i3tuple>& circles) {
 	int overlap = 0;
 	bool ok = false;
 	for (auto circ : circles) {
-		overlap = overlapped(circ, circle);
+		//overlap = overlapped(circ, circle);
+		overlap = 1;
 		if (overlap == -1) {
 			ok = false;
 			break;
@@ -140,9 +142,31 @@ void ofApp::addLotsofCircles() {
 	int numMed = rand() % 3 + 2;
 	int added = 0;
 	int i = 0;
+	int largePacked = 0;
+	int medPacked = 0;
+	int smallPacked = 0;
+	int tinyPacked = 0;
+	int medR = 0;
 	while (i < 5000) {
 		i += 1;
-		int medR = float(float(100 + rand() % 700) / 1000. * float(bigR));
+		if (largePacked < 2) {
+			medR = float(float(400 + rand() % 300) / 1000. * float(bigR));
+		}
+		else {
+			if (medPacked < 10) {
+				medR = float(float(100 + rand() % 300) / 1000. * float(bigR));
+			}
+			else {
+				if (smallPacked < 10) {
+					medR = float(float(100 + rand() % 100) / 1000. * float(bigR));
+				}
+				else {
+					
+						medR = float(float(50 + rand() % 50) / 1000. * float(bigR));
+					}
+				}
+			}
+		
 		int theta = rand() % 360;
 		float r = sqrt(static_cast <float> (rand()) / static_cast <float> (RAND_MAX));
 		int rOffset = int(r * (float(bigR) * 1));
@@ -151,14 +175,26 @@ void ofApp::addLotsofCircles() {
 		circle = make_tuple(x, y, medR);
 		bool ok = testCircle(circle, circles);
 		if (ok) {
-			auto circle1 = make_tuple(x, y, medR + 10);
+			auto circle1 = make_tuple(x, y, medR + 5);
 			 ok = testCircle(circle1, circles);
 			if ( ok){
-				circle1 = make_tuple(x, y, medR - 10);
+				circle1 = make_tuple(x, y, medR - 5);
 				 ok = testCircle(circle1, circles);
 				 if (ok) {
 					 addCircle(circle);
 					 circles.push_back(circle);
+					 if (medR > float(bigR) * .5) {
+						 largePacked += 1;
+					 }
+					 if (medR > float(bigR) * .3) {
+						 medPacked += 1;
+					 }
+					 if (medR > float(bigR) * .1) {
+						 smallPacked += 1;
+					 }
+					 else  {
+						 tinyPacked += 1;
+					 }
 					 cout << "edges : " << edges.size() << endl;
 					 i = 0;
 				 }
@@ -337,17 +373,17 @@ ofPoint segsegintersect(const ofPoint & a, const ofPoint & b, const ofPoint & c,
 bool sortCutPoints(const pair<int,ofPoint>& a, const pair<int, ofPoint>& b) {
 	return (a.first < b.first);
 }
-bool ofApp::intersections(ofPolyline & e1) 
+bool ofApp::intersections(ofPolyline & e1, int index) 
 	{
 		
 		auto bbox1 = e1.getBoundingBox();
 
 		for (int j =0; j < edges.size(); ++j) {
-			auto e2 = &edges[j];
-			auto bbox2 = e2->getBoundingBox();
-			if (e1.getVertices()[2] == e2->getVertices()[2]) {
+			if (j == index) {
 				continue;
 			}
+			auto e2 = &edges[j];
+			auto bbox2 = e2->getBoundingBox();
 			if (bbox1.intersects(bbox2)) {
 				auto v1 = e1.getVertices();
 				auto v2 = e2->getVertices();
@@ -360,10 +396,10 @@ bool ofApp::intersections(ofPolyline & e1)
 					extra2 = 0;
 				}
 				
-				for (int k = 0; k < v1.size() - extra1; ++k) {
+				for (int k = 3; k < v1.size() - extra1-3; ++k) {
 					auto va = v1[k];
 					auto vb = v1[(k + 1) % v1.size()];
-					for (int l = 0; l < v2.size() - extra1; ++l) {
+					for (int l = 3; l < v2.size() - extra1-3; ++l) {
 						auto vc = v2[l];
 						auto vd = v2[(l + 1) % v2.size()];
 						ofPoint intersection = segsegintersect(va, vb, vc, vd);
@@ -585,10 +621,8 @@ ofPolyline ofApp::addKnob(int index) {
 	ofLog(OF_LOG_NOTICE, "knobs");
 	bool placed = false;
 	for (int k = 0; k < 1000; ++k){
-		if (k == index) {
-			continue;
-	}
-	ofPolyline edge = edge1.getResampledByCount(1000);
+	
+	ofPolyline edge = edge1.getResampledByCount(100);
 	int i = rand() % knobs.size();
 	ofPolyline knob = knobs[i];
 	auto v = knob.getVertices();
@@ -608,12 +642,9 @@ ofPolyline ofApp::addKnob(int index) {
 	ofPoint a2 = vertices[n-1];
 	
 	float fuzz = (static_cast <float> (rand()) / static_cast <float> (RAND_MAX)-.5)*.2;
-	float midIndex = edge.getIndexAtPercent(.5);
+	float midIndex = edge.getIndexAtPercent(.5+fuzz);
 	float midLength = edge.getLengthAtIndexInterpolated(midIndex);
 	float d = vertices[0].distance(vertices[n-1]);
-	if (d < 10) {
-		continue;
-	}
 	ofPoint p1 = edge.getPointAtLength(midLength - d / 2);
 	ofPoint p2 = edge.getPointAtLength(midLength + d / 2);
 	float i1 = edge.getIndexAtLength(midLength - d / 2);
@@ -645,12 +676,15 @@ ofPolyline ofApp::addKnob(int index) {
 	}
 	vector<ofVec3f> newVerts;
 	ofPolyline newEdge;
+	ofPolyline testKnob;
+
 	auto edgeVerts = edge.getVertices();
 	for (int i = 0; i <= i1; ++i) {
 		newEdge.addVertex(edgeVerts[i]);
 	}
 	for (int i = 0; i < n; ++i) {
 		newEdge.addVertex(vertices[i]);
+		testKnob.addVertex(vertices[i]);
 		//ofLog(OF_LOG_NOTICE, ofToString(vertices[i][0]) + " " + ofToString(vertices[i][1]));
 	
 	}
@@ -658,9 +692,18 @@ ofPolyline ofApp::addKnob(int index) {
 	for (int i = ceil(i2); i < edgeVerts.size(); ++i) {
 		newEdge.addVertex(edgeVerts[i]);
 	}
-	if(!intersections(newEdge.getResampledByCount(100))){
+	ofPolyline testRect;
+	auto knobRec = testKnob.getBoundingBox();
+	knobRec.scale(1.2);
+	testRect.addVertex(knobRec.getTopLeft());
+	testRect.addVertex(knobRec.getTopRight());
+	testRect.addVertex(knobRec.getBottomRight());
+	testRect.addVertex(knobRec.getBottomLeft());
+	if(!intersections(testRect,index)){
+	if(!intersections(newEdge, index)){
 		cout << "success" << endl;
 	return newEdge;
+	}
 	}
 	}
 	cout << "failure" << endl;

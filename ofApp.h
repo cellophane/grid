@@ -43,5 +43,5 @@ class ofApp : public ofBaseApp{
 		vector<ofxSVG> knobsvgs;
 		void addCircle(i3tuple circle);
 		void intersections();
-		bool intersections(ofPolyline & testEdge);
+		bool intersections(ofPolyline & testEdge, int index);
 };
