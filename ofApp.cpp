@@ -74,24 +74,31 @@ int ofApp::overlapped(i3tuple c1, i3tuple c2) {
 	float d = sqrt(pow((get<0>(c2) - get<0>(c1)), 2) + pow((get<1>(c2) - get<1>(c1)), 2));
 	float r = (float)get<2>(c1);
 	float R = (float)get<2>(c2);
-	float A = circleOverlap(c1, c2);
-	if (A > 0 && A < 72 * 72) {
+	float r1 = min(r, R);
+	float r2 = max(r, R);
+	r = r1;
+	R = r2;
+	/*float A = circleOverlap(c1, c2);
+	if (A > 0 && (A < 72 * 72 || A > R*R*3-72*72)) {
 		return -1;
 	}
-	if (abs(d - (r + R)) < 30) {
+	*/
+	if (abs(r + R - d) < r / 4.) {
 		return -1;
 	}
-	if (d > max(r, R) && d < r + R) {
-		return 1;
+	if (abs(r - R - d) < r / 4.) {
+		return -1;
+	}
+	if (abs(R - r - d) < r / 4.) {
+		return -1;
 	}
 	return 0;
 }
 bool ofApp::testCircle(i3tuple circle, vector<i3tuple>& circles) {
 	int overlap = 0;
-	bool ok = false;
+	bool ok = true;
 	for (auto circ : circles) {
-		//overlap = overlapped(circ, circle);
-		overlap = 1;
+		overlap = overlapped(circ, circle);
 		if (overlap == -1) {
 			ok = false;
 			break;
@@ -138,12 +145,31 @@ float ofApp::circleOverlap(const i3tuple c1, const i3tuple c2) {
 	float A = r * r * acos(t1) + R * R * acos(t2) - t3;
 	return A;
 }
+void ofApp::makeScallop() {
+	int center = 400;
+	auto circle = make_tuple(center, center, 25);
+	circles.push_back(circle);
+	addCircle(circle);
+	float cmax = 50;
+	for (int i = 0; i < 100; ++i) {
+		float theta = 2 * 3.14159 * static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
+		bool project = true;
+		auto ray = make_pair(cos(theta) * cmax, sin(theta) * cmax);
+		auto base = make_pair(cos(theta) * cmax*.9, sin(theta) * cmax*.9);
+		while (project) {
+			ofPolyline 
+		}
+	}
+}
 void ofApp::addLotsofCircles() {
 	int bigR = 300;
 	int center = 400;
 	auto circle = make_tuple(center, center, bigR);
-	circles.push_back(circle);
+	if(testCircle(circle,circles)){
 	addCircle(circle);
+	circles.push_back(circle);
+	}
+	
 	int numMed = rand() % 3 + 2;
 	int added = 0;
 	int i = 0;
@@ -403,6 +429,27 @@ ofPoint segsegintersect(const ofPoint & a, const ofPoint & b, const ofPoint & c,
 bool sortCutPoints(const pair<int,ofPoint>& a, const pair<int, ofPoint>& b) {
 	return (a.first < b.first);
 }
+bool ofApp::rayIntersection(ofPoint p2) {
+	ofPoint p1 = p2;
+	ofPoint intersectionPoint;
+	bool intersected = true;
+	while(intersected == true){
+		intersected = false;
+	for (auto circle : circles) {
+		float d = sqrt(pow((get<0>(circle) - p1.x), 2) + pow((get<1>(circle) - p1.y), 2));
+		if (d < get<2>(circle)) {
+			intersectionPoint = p1;
+			intersected = true;
+			break;
+		}
+	}
+	p1 += p2;
+	}
+	ofPolyline ray;
+	ray.addVertex(p1);
+	ray.addVertex(p2);
+
+}
 bool ofApp::intersections(ofPolyline & e1, int index) 
 	{
 		
@@ -650,7 +697,7 @@ ofPolyline ofApp::addKnob(int index) {
 	auto edge1 = edges[index];
 	ofLog(OF_LOG_NOTICE, "knobs");
 	bool placed = false;
-	for (int k = 0; k < 100; ++k){
+	for (int k = 0; k < 1000; ++k){
 		
 	ofPolyline edge = edge1.getResampledByCount(300);
 	int i = rand() % knobs.size();
@@ -728,24 +775,26 @@ ofPolyline ofApp::addKnob(int index) {
 	}
 	ofPolyline testRect;
 	auto knobRec = testKnob.getBoundingBox();
-	cout << "before " << knobRec.getArea() << "... " << knobRec.getCenter() << endl;
 	knobRec.standardize();
 	knobRec.scaleFromCenter(1.25);
-	cout << "after " << knobRec.getArea() << "... " << knobRec.getCenter() << endl;
 	testRect.addVertex(knobRec.getTopLeft());
 	testRect.addVertex(knobRec.getTopRight());
 	testRect.addVertex(knobRec.getBottomRight());
 	testRect.addVertex(knobRec.getBottomLeft());
 	testRect.close();
 	testRect = testRect.getResampledByCount(100);
-	glFinish();
-	glFlush();
 	testKnob.clear();
 	if(!intersections(testRect,index)){
-	if(!intersections(newEdge, index)){
-		cout << "success" << endl;
-	return newEdge;
-	}
+		testRect.clear();
+		testRect.addVertex((knobRec.getTopLeft() + knobRec.getTopRight()) / 2);
+		testRect.addVertex((knobRec.getBottomLeft() + knobRec.getBottomRight()) / 2);
+		testRect = testRect.getResampledByCount(100);
+		if (!intersections(testRect, index)) {
+			if (!intersections(newEdge, index)) {
+				cout << "success" << endl;
+				return newEdge;
+			}
+		}
 	}
 	}
 	cout << "failure" << endl;
