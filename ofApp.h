@@ -10,6 +10,9 @@ class ofApp : public ofBaseApp{
 		ofxImGui::Gui gui;
 		ofFbo cBuffer;
 		vector<int> knobUsage;
+		int scallopRadius = 40;
+		float xSpacing = 1.8;
+		float ySpacing = 1.8;
 		void setup();
 		bool floodFillTest(i3tuple circle, vector<i3tuple>& circles);
 		int overlapped(i3tuple c1, i3tuple c2);
@@ -18,7 +21,9 @@ class ofApp : public ofBaseApp{
 		bool testCircle(i3tuple circle, vector<i3tuple>& circles);
 		float circleOverlapChord(const i3tuple c1, const i3tuple c2);
 		float circleOverlap(i3tuple c1, i3tuple c2);
+		void regularScallop();
 		void makeScallop();
+		bool noCircleIntersect(i3tuple c1);
 		ofPoint segEdgesIntersect(pair<ofPoint, ofPoint> segment);
 		void addLotsofCircles();
 		void packCircles();
@@ -51,4 +56,5 @@ class ofApp : public ofBaseApp{
 		void intersections();
 		bool intersections(ofPolyline & testEdge, int index);
 		void addColor();
+		void exportPDF(string filename);
 };
