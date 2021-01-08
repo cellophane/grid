@@ -9,12 +9,15 @@ class ofApp : public ofBaseApp{
 	public:
 		ofxImGui::Gui gui;
 		ofFbo cBuffer;
+		vector<int> knobUsage;
 		void setup();
 		bool floodFillTest(i3tuple circle, vector<i3tuple>& circles);
 		int overlapped(i3tuple c1, i3tuple c2);
 		bool testCircle(i3tuple circle, vector<i3tuple>& circles);
 		float circleOverlapChord(const i3tuple c1, const i3tuple c2);
 		float circleOverlap(i3tuple c1, i3tuple c2);
+		void makeScallop();
+		ofPoint segEdgesIntersect(pair<ofPoint, ofPoint> segment);
 		void addLotsofCircles();
 		void packCircles();
 		void update();
