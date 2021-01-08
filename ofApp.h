@@ -13,6 +13,8 @@ class ofApp : public ofBaseApp{
 		void setup();
 		bool floodFillTest(i3tuple circle, vector<i3tuple>& circles);
 		int overlapped(i3tuple c1, i3tuple c2);
+		int overlapped1(i3tuple c1, i3tuple c2);
+		bool testCircleCheap(i3tuple circle, vector<i3tuple>& circles);
 		bool testCircle(i3tuple circle, vector<i3tuple>& circles);
 		float circleOverlapChord(const i3tuple c1, const i3tuple c2);
 		float circleOverlap(i3tuple c1, i3tuple c2);

@@ -115,6 +115,46 @@ int ofApp::overlapped(i3tuple c1, i3tuple c2) {
 	}
 	return 0;
 }
+int ofApp::overlapped1(i3tuple c1, i3tuple c2) {
+	float d = sqrt(pow((get<0>(c2) - get<0>(c1)), 2) + pow((get<1>(c2) - get<1>(c1)), 2));
+	float r = (float)get<2>(c1);
+	float R = (float)get<2>(c2);
+	float r1 = min(r, R);
+	float r2 = max(r, R);
+	r = r1;
+	R = r2;
+	/*float A = circleOverlap(c1, c2);
+	if (A > 0 && (A < 72 * 72 || A > R*R*3-72*72)) {
+		return -1;
+	}
+	*/
+	if (abs(r + R - d) < 9) {
+		return -1;
+	}
+	if (abs(r - R - d) < 9) {
+		return -1;
+	}
+	if (abs(R - r - d) < 9) {
+		return -1;
+	}
+	return 0;
+}
+bool ofApp::testCircleCheap(i3tuple circle, vector<i3tuple>& circles) {
+	int overlap = 0;
+	bool ok = true;
+	for (auto circ : circles) {
+		overlap = overlapped1(circ, circle);
+		if (overlap == -1) {
+			ok = false;
+			break;
+		}
+		if (overlap == 1) {
+			ok = true;
+		}
+
+	}
+	return ok;
+}
 bool ofApp::testCircle(i3tuple circle, vector<i3tuple>& circles) {
 	int overlap = 0;
 	bool ok = true;
@@ -226,6 +266,9 @@ void ofApp::makeScallop() {
 		//ray.y = int(ray.y);
 		int r = rand() % 15+40;
 		auto c = make_tuple(int(ray.x), int(ray.y), r);
+		if (!testCircleCheap(c, circles)) {
+			continue;
+		}
 		float cmaxold = cmax;
 		cmax = max(cmax, abs(ray.x - center));
 		cmax = max(cmax, abs(ray.y - center));
@@ -942,8 +985,8 @@ ofPolyline ofApp::addKnob(int index) {
 			testRect.addVertex(knobRec.getTopRight());
 			testRect.addVertex(knobRec.getBottomRight());
 			testRect.addVertex(knobRec.getBottomLeft());
-			testRect.close();
-			testRect = testRect.getResampledByCount(100);
+			testRect.addVertex(knobRec.getTopLeft());
+			testRect = testRect.getResampledByCount(40);
 			testKnob.clear();
 			if (!intersections(testRect, index)) {
 				testRect.clear();
