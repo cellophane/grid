@@ -679,7 +679,8 @@ void ofApp::packCircles() {
 //-----------------------------------
 void ofApp::addColor() {
 	ofFbo offscreen;
-	int w = 1000, h = 1000;
+	float scale = 300 / 72.;
+	int w = 1000*scale, h = 1000*scale;
 	c.allocate(w, h, OF_IMAGE_COLOR_ALPHA);
 	offscreen.allocate(w, h);
 	offscreen.begin();
@@ -690,7 +691,9 @@ void ofApp::addColor() {
 	ofColor eColor = { 255,0,255 };
 	ofSetColor(eColor);
 	for (auto e : edges) {
-		e.draw();
+		auto e1 = e;
+		e1.scale(scale, scale);
+		e1.draw();
 	}
 	
 	offscreen.end();
@@ -814,6 +817,7 @@ void ofApp::addColor() {
 			}
 		}
 	}
+	c.update();
 	cout << "done with adjacency" << endl;
 	auto fColors = fourColor(adjacency);
 	for (auto c : fColors) {
@@ -826,16 +830,24 @@ void ofApp::addColor() {
 		}
 	}
 	vector<ofColor> tileColors;
-	for (int i = 0; i < maxColor+2; ++i) {
-		tileColors.push_back(ofColor::fromHsb(ofRandom(0,255), ofRandom(200,255), 255));
+	tileColors.clear();
+	for (int i = 0; i < maxColor+10; ++i) {
+		tileColors.push_back(ofColor::fromHsb((i*60)%255, ofRandom(200,255), 255));
 	}
+	auto white = ofColor();
+	white.r = 255;
+	white.g = 255;
+	white.b = 255;
+	tileColors[0] = white;
+
 	for (int i = 0; i < w; ++i) {
 		for (int j = 0; j < h; ++j) {
-			int idx = int(c.getColor(i, j).g);
+			int idx = fColors[int(c.getColor(i, j).g)];
 			c.setColor(i, j, tileColors[idx]);
 		}
 	}
 	c.update();
+	c.save("test.png");
 }
 vector<int> ofApp::fourColor(vector<vector<int>> adjacency) {
 	cout << "four color" << endl;
@@ -856,7 +868,7 @@ vector<int> ofApp::fourColor(vector<vector<int>> adjacency) {
 	vector<int> removedIndices;
 	removedIndices.clear();
 	bool foundOne = true;
-	while (r < colors-1 &&foundOne ==true ) {
+	while (foundOne ==true ) {
 		foundOne = false;
 		for (int i = 1; i < colors; ++i) {
 			if (degree[i] < 5) {
@@ -885,6 +897,7 @@ vector<int> ofApp::fourColor(vector<vector<int>> adjacency) {
 			}
 		}
 	}
+	cout << "removed:" << r <<" circles: " << circles.size() << endl;
 	for (auto node : removed) {
 		int ind = node.first;
 		vector<int> putback = node.second;
@@ -1010,6 +1023,7 @@ void ofApp::draw(){
 			showColor = !showColor;
 		}
 		if (showColor) {
+			ofSetColor(0xffffff);
 			c.draw(0, 0);
 		}
 	}
@@ -1336,8 +1350,7 @@ edges.push_back(newEdge);
 
 }
 void ofApp::loadKnobs() {
-	string inputPath = "C:\\Users\\jessi\\Nervous System Dropbox\\Nervous System\\puzzles\\puzzle development\\chris yates\\Knobs\\SVGs\\svg resave";
-	inputPath = "C:\\Users\\jules\\Desktop\\svg resave";
+	string inputPath = "svgs";
 	ofDirectory dataDirectory(inputPath);
 	auto files = dataDirectory.getFiles();
 	for (size_t i = 0; i < files.size(); i++)
