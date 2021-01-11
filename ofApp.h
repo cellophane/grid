@@ -52,9 +52,12 @@ class ofApp : public ofBaseApp{
 		vector<ofPolyline> edges;
 		vector<ofPath> knobPaths;
 		vector<ofxSVG> knobsvgs;
+		vector<string> knobNames;
 		void addCircle(i3tuple circle);
 		void intersections();
 		bool intersections(ofPolyline & testEdge, int index);
 		void addColor();
+		vector<int> fourColor(vector<vector<int>> adjacency);
 		void exportPDF(string filename);
+		void clean();
 };

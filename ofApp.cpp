@@ -6,6 +6,7 @@ int maxIter = 500;
 vector<i3tuple> circles;
 vector<ofRectangle> boundingBoxes;
 bool drawBoundingBoxes = false;
+int scallopR = 350;
 ofImage c;
 //--------------------------------------------------------------
 ofPoint segsegintersect(const ofPoint& a, const ofPoint& b, const ofPoint& c, const ofPoint& d) {
@@ -95,6 +96,9 @@ void ofApp::addKnobs() {
 		auto e = addKnob(i);
 		edges[i] = e;
 		//newEdges.push_back(e);
+	}
+	for (int i = 0; i < knobUsage.size(); ++i) {
+		cout << knobNames[i] << ": " << knobUsage[i] << endl;
 	}
 }
 //circle in format x,y,R
@@ -362,15 +366,14 @@ void ofApp::makeScallop() {
 		auto base = ofPoint(cos(theta) , sin(theta));
 		auto ray = base*2.*cmax+ofPoint(center,center);
 		bool intersected = false;
-		int r = rand() % 15 + 40;
+		int r = rand() % 25 + 30;
 		if(i< 5000){
 		while (!intersected) {
 			intersected = pointCircle(ray);
 			ray -= base*4.;
 			
 		}
-		ray += base * 4.;
-		ray += base * (rand() % (r - 10) + 10);
+		ray += base * (rand() % (r /2) + 10);
 		}
 		else {
 			ray = ofPoint(ofRandom(100, 700), ofRandom(100, 700));
@@ -389,7 +392,7 @@ void ofApp::makeScallop() {
 		float cmaxold = cmax;
 		cmax = max(cmax, abs(ray.x - center));
 		cmax = max(cmax, abs(ray.y - center));
-		if (cmax > 100) {
+		if (cmax > scallopR) {
 			cmax = cmaxold;
 			continue;
 		}
@@ -447,6 +450,7 @@ void ofApp::makeScallop() {
 			continue;
 		}
 		circles.push_back(c);
+		bool added = false;
 		for (int seg = 0; seg < startStop.size(); seg += 2) {
 			float theta1 = startStop[seg];
 			float theta2 = startStop[seg + 1];
@@ -456,16 +460,27 @@ void ofApp::makeScallop() {
 			}
 			theta2 += 2. / float(r);
 			theta1 -= 2. / float(r);
-			circleSeg.addVertex(ray + ofPoint(r * cos(theta1), r * sin(theta1)));
+			//circleSeg.addVertex(ray + ofPoint(r * cos(theta1), r * sin(theta1)));
 			while(theta1<theta2){
 				ofPoint p1 = ray + ofPoint(r * cos(theta1), r * sin(theta1));
 				circleSeg.addVertex(p1);
 				theta1 += 2. * 3.14159 / 360.;
 			}
 			circleSeg.addVertex(ray + ofPoint(r * cos(theta2), r * sin(theta2)));
-			edges.push_back(circleSeg);
+			if (circleSeg.getLengthAtIndex(circleSeg.size() - 1) < 30) {
+				continue;
 			}
-		cout << "added a circle " << i << endl;
+			added = true;
+			edges.push_back(circleSeg);
+			//circleSeg = addKnob(edges.size() - 1);
+			//edges.pop_back();
+			//edges.push_back(circleSeg);
+			}
+		if (!added) {
+			circles.pop_back();
+		}
+		else{ cout << "added a circle " << i << endl; }
+		
 		}
 		
 
@@ -664,12 +679,16 @@ void ofApp::packCircles() {
 //-----------------------------------
 void ofApp::addColor() {
 	ofFbo offscreen;
-	offscreen.allocate(1000, 1000);
+	int w = 1000, h = 1000;
+	c.allocate(w, h, OF_IMAGE_COLOR_ALPHA);
+	offscreen.allocate(w, h);
 	offscreen.begin();
 	ofBackground(255);
 	ofSetColor(255);
-	ofFill();
-	ofSetColor({ 255,0,255 });
+	ofDisableSmoothing();
+	ofPushMatrix();
+	ofColor eColor = { 255,0,255 };
+	ofSetColor(eColor);
 	for (auto e : edges) {
 		e.draw();
 	}
@@ -677,60 +696,223 @@ void ofApp::addColor() {
 	offscreen.end();
 	offscreen.readToPixels(c.getPixels());
 	c.update();
-	int i = 0;
-	auto r = c.getPixels()[0];
-	auto g = c.getPixels()[1];
-	auto b = c.getPixels()[2];
-	cout << "R " <<  int(r) << "G" << int(g) << "B " << int(b)<<"  " << endl;
-	while (i < 1000 * 1000) {
-		i += 1;
-		int cInd = i * 3;
-		auto nR = char(ofRandom(0, 255));
-		auto nG = char(ofRandom(0, 255));
-		auto nB = char(max(min(255. - (nR + nG) / 2., 255.), 0.));
-		if (c.getPixels()[cInd] == r && c.getPixels()[cInd + 1] == g && c.getPixels()[cInd + 2] == b) {
-			c.update();
-			c.getPixels()[cInd] = nR; c.getPixels()[cInd + 1] = nG; c.getPixels()[cInd + 2] = nB;
+	ofColor B = c.getColor(0, 0);
+	unsigned char* pix = c.getPixels().getData();
+	int cColor = -1;
+	for (int j = 1; j < h - 1; ++j) {
+		for (int i = 1; i < w - 1; ++i) {
 
-			vector<int> neighbors;
-			neighbors.clear();
-			if (i > 1000) {
-				neighbors.push_back(i - 1000);
-			}
-			if (i < 1000*1000 - 1000) {
-				neighbors.push_back(i + 1000);
-			}
-			if (i % 1000 < 999) {
-				neighbors.push_back(i + 1);
-			}
-			if (i % 1000 > 1) {
-				neighbors.push_back(i - 1);
-			}
-			while (neighbors.size() > 0) {
-				int cI = neighbors[neighbors.size() - 1];
-				
-				cInd = cI * 3;
-				neighbors.pop_back();
-				if (c.getPixels()[cInd] == r && c.getPixels()[cInd + 1] == g && c.getPixels()[cInd + 2] == b) {
-					c.getPixels()[cInd] = nR; c.getPixels()[cInd + 1] = nG; c.getPixels()[cInd + 2] = nB;
-					if (cI > 1000) {
-						neighbors.push_back(cI - 1000);
+			if (c.getColor(i, j) == B) {
+				cColor += 1;
+				if (cColor > 250) {
+					cout << "too many pieces" << endl;
+				}
+				cColor = cColor % 250;
+				float R = ofRandom(0, 255);
+				float G = ofRandom(0, 255);
+				ofColor rColor = { R,G,(255-(R+G)/2) };
+				vector<pair<int, int>> neighbors;
+				int cX = i;
+				int cY = j;
+				do {
+					if (c.getColor(cX, cY) == B) {
+						c.setColor(cX, cY, { 0,float(cColor),0 });
+						//c.setColor(cX, cY, rColor);
+						if (cX < w - 1) {
+							neighbors.push_back(make_pair(cX + 1, cY));
+						}
+						if (cX > 1) {
+							neighbors.push_back(make_pair(cX - 1, cY));
+						}
+						if (cY < h - 1) {
+							neighbors.push_back(make_pair(cX, cY+1));
+						}
+						if (cY > 1) {
+							neighbors.push_back(make_pair(cX, cY-1));
+						}
 					}
-					if (cI < 1000*1000 - 1000) {
-						neighbors.push_back(cI + 1000);
+					cX = neighbors[neighbors.size() - 1].first;
+					cY = neighbors[neighbors.size() - 1].second;
+					neighbors.pop_back();
+					
+				} while (neighbors.size() > 0);
+			}
+		}
+	}
+	bool removedLine = false;
+	vector<tuple<int, int, ofColor>> changeColor;
+	do {
+		removedLine = false;
+		for (int j = 1; j < h - 1; ++j) {
+			for (int i = 1; i < w - 1; ++i) {
+				vector<pair<int, int>> neighbors;
+				if (c.getColor(i, j) == ofColor({ 255, 0, 255 })) {
+					int cX = i;
+					int cY = j;
+					if (cX < w - 1) {
+						neighbors.push_back(make_pair(cX + 1, cY));
 					}
-					if (cI % 1000 < 999) {
-						neighbors.push_back(cI + 1);
+					if (cX > 1) {
+						neighbors.push_back(make_pair(cX - 1, cY));
 					}
-					if (cI % 1000 > 1) {
-						neighbors.push_back(cI - 1);
+					if (cY < h - 1) {
+						neighbors.push_back(make_pair(cX, cY + 1));
+					}
+					if (cY > 1) {
+						neighbors.push_back(make_pair(cX, cY - 1));
+					}
+					while (neighbors.size() > 0) {
+						cX = neighbors[neighbors.size() - 1].first;
+						cY = neighbors[neighbors.size() - 1].second;
+						neighbors.pop_back();
+						if (c.getColor(cX, cY) != eColor) {
+							neighbors.clear();
+							changeColor.push_back(make_tuple(i, j, c.getColor(cX, cY)));
+							removedLine = true;
+						}
+
 					}
 				}
 			}
+		}
+		while (changeColor.size() > 0) {
+			auto pos = changeColor[changeColor.size() - 1];
+			c.setColor(get<0>(pos), get<1>(pos), get<2>(pos));
+			changeColor.pop_back();
+		}
+	} while (removedLine == true);
+	vector<vector<int>> adjacency(cColor+1, vector<int>(cColor+1));
+	
+	for (int j = 1; j < h - 1; ++j) {
+		for (int i = 1; i < w - 1; ++i) {
+			int g1 = c.getColor(i, j).g;
+			vector<pair<int, int>> neighbors;
+			int cX = i;
+			int cY = j;
+			if (cX < w - 1) {
+				neighbors.push_back(make_pair(cX + 1, cY));
+			}
+			if (cX > 1) {
+				neighbors.push_back(make_pair(cX - 1, cY));
+			}
+			if (cY < h - 1) {
+				neighbors.push_back(make_pair(cX, cY + 1));
+			}
+			if (cY > 1) {
+				neighbors.push_back(make_pair(cX, cY - 1));
+			}
+			while (neighbors.size() > 0) {
+				cX = neighbors[neighbors.size() - 1].first;
+				cY = neighbors[neighbors.size() - 1].second;
+				neighbors.pop_back();
+				int g2 = c.getColor(cX, cY).g;
+				if (g2 != g1) {
+					adjacency[g1][g2] = 1;
+					adjacency[g2][g1] = 1;
+				}
 
+			}
+		}
+	}
+	cout << "done with adjacency" << endl;
+	auto fColors = fourColor(adjacency);
+	for (auto c : fColors) {
+		cout << c << endl;
+	}
+	int maxColor = 0;
+	for (int i = 0; i < fColors.size(); ++i) {
+		if (fColors[i] > maxColor) {
+			maxColor = fColors[i];
+		}
+	}
+	vector<ofColor> tileColors;
+	for (int i = 0; i < maxColor+2; ++i) {
+		tileColors.push_back(ofColor::fromHsb(ofRandom(0,255), ofRandom(200,255), 255));
+	}
+	for (int i = 0; i < w; ++i) {
+		for (int j = 0; j < h; ++j) {
+			int idx = int(c.getColor(i, j).g);
+			c.setColor(i, j, tileColors[idx]);
 		}
 	}
 	c.update();
+}
+vector<int> ofApp::fourColor(vector<vector<int>> adjacency) {
+	cout << "four color" << endl;
+	int colors = adjacency[0].size();
+	vector<pair<int,vector<int>>> removed;
+	vector <int> degree;
+	vector<int> vertexColor(colors);
+	for (int i = 1; i < colors; ++i) {
+		int d = 0;
+		for (int j = 1; j < colors; ++j) {
+			if (adjacency[i][j] > 0) {
+				d += 1;
+			}
+		}
+		degree.push_back(d);
+	}
+	int r = 0;
+	vector<int> removedIndices;
+	removedIndices.clear();
+	bool foundOne = true;
+	while (r < colors-1 &&foundOne ==true ) {
+		foundOne = false;
+		for (int i = 1; i < colors; ++i) {
+			if (degree[i] < 5) {
+				bool good = true;
+				for (int j = 0; j < removedIndices.size(); ++j) {
+					if (removedIndices[j] == i) {
+						good = false;
+						break;
+					}
+				}
+				if (!good) {
+					continue;
+				}
+				removed.push_back(make_pair(i,adjacency[i]));
+				removedIndices.push_back(i);
+				foundOne = true;
+				r += 1;
+				for (int j = 1; j < colors; ++j) {
+					int con = adjacency[i][j];
+					if (con > 0) {
+						degree[j] -= 1;
+						adjacency[i][j] = 0;
+						adjacency[j][i] = 0;
+					}
+				}
+			}
+		}
+	}
+	for (auto node : removed) {
+		int ind = node.first;
+		vector<int> putback = node.second;
+		for (int j = 1; j < colors; ++j) {
+			int con = putback[j];
+			if (con > 0) {
+				adjacency[ind][j] = 1;
+				adjacency[j][ind] = 1;
+			}
+		}
+		int minColor = 0;
+		vector<int> usedColors;
+		usedColors.clear();
+		for (int j = 0; j < colors; ++j) {
+			if (adjacency[ind][j] > 0) {
+					usedColors.push_back(vertexColor[j]);
+			}
+		}
+		for(int ii=1;ii<20;++ii){
+		if (std::find(usedColors.begin(), usedColors.end(), ii) == usedColors.end()) {
+			minColor = ii;
+			break;
+		}
+		}
+		vertexColor[ind] = minColor;
+
+	}
+	return vertexColor;
 }
 void ofApp::exportPDF(string filename)
 {
@@ -781,6 +963,7 @@ void ofApp::draw(){
 		if (ImGui::Button("Add Circles")) {
 			addLotsofCircles();
 		}
+		ImGui::SliderInt("Scallop Size", &scallopR, 100, 400);
 		if (ImGui::Button("Scallop")) {
 			makeScallop();
 		}
@@ -793,6 +976,9 @@ void ofApp::draw(){
 		
 		if (ImGui::Button("Calculate Intersections")) {
 			intersections();
+		}
+		if (ImGui::Button("Clean")) {
+			clean();
 		}
 		if (ImGui::Button("draw knob bounding boxes")) {
 			drawBoundingBoxes = !drawBoundingBoxes;
@@ -815,7 +1001,7 @@ void ofApp::draw(){
 		}
 		if (ImGui::Button("Add Color")) {
 			if(addedColor == false){
-				c.allocate(1000, 1000, OF_IMAGE_COLOR);
+				
 
 				cout << "adding color";
 			addColor();
@@ -948,7 +1134,56 @@ bool ofApp::intersections(ofPolyline & e1, int index)
 		return false;
 	}
 	
-	
+void ofApp::clean() {
+	/*
+		if (iter->getLengthAtIndex(iter->size() - 1) < 1) {
+			iter = edges.erase(iter);
+		}
+		else {
+			++iter;
+		}
+	}
+	*/
+for (auto e = edges.begin(); e != edges.end();) {
+	bool erased = false;
+		if (e->getLengthAtIndex(e->size()-1) < 10) {
+			cout << "found an edge to test" << endl;
+			ofPoint p0 = e->getVertices()[0];
+			ofPoint p1 = e->getVertices()[e->size() - 1];
+			float minD0 = 1000;
+			float minD1 = 1000;
+			for (auto e1 : edges) {
+				ofPoint pp = e1.getVertices()[0];
+				ofPoint pp1 = e1.getVertices()[e1.size() - 1];
+				if ( pp== p0 &&  pp1== p1) {
+					continue;
+				}
+				ofPoint p0a = e1.getClosestPoint(p0);
+				ofPoint p1a = e1.getClosestPoint(p1);
+				float cMin0 = p0a.distance(p0);
+				float cMin1 = p1a.distance(p1);
+				minD0 = min(cMin0, minD0);
+				minD1 = min(cMin1, minD1);
+				if (cMin0 < 1 && cMin1 < 1) {
+					e = edges.erase(e);
+					cout << "deleted an edge for completely overlapping" << endl;
+					erased = true;
+					break;
+				}
+
+			}
+			if (minD0 > 1 || minD1 > 1 && erased ==false) {
+				e = edges.erase(e);
+				erased = true;
+				cout << "deleted an edge for dangling" << endl;
+			}
+
+
+
+		}
+		if (erased == false) { ++e; }
+	}
+}
 void ofApp::intersections() {
 	map<int, vector<pair<int, ofPoint>>> cutPointMap;
 	for (int i = 0; i < edges.size(); ++i) {
@@ -1097,24 +1332,19 @@ edges.push_back(newEdge);
 	for (auto i : indices) {
 		edges.erase(edges.begin() + i);
 	}
-	for (auto iter = edges.begin(); iter != edges.end();) {
-		if (iter->getLengthAtIndex(iter->size() - 1) < 1) {
-			iter = edges.erase(iter);
-		}
-		else {
-			++iter;
-		}
-	}
+	
+
 }
 void ofApp::loadKnobs() {
 	string inputPath = "C:\\Users\\jessi\\Nervous System Dropbox\\Nervous System\\puzzles\\puzzle development\\chris yates\\Knobs\\SVGs\\svg resave";
-	//inputPath = "C:\\Users\\jules\\Desktop\\svg resave";
+	inputPath = "C:\\Users\\jules\\Desktop\\svg resave";
 	ofDirectory dataDirectory(inputPath);
 	auto files = dataDirectory.getFiles();
 	for (size_t i = 0; i < files.size(); i++)
 	{
 		if (files[i].getExtension() == "svg") {
 			auto svg = ofxSVG();
+			knobNames.push_back(files[i].getFileName());
 			knobsvgs.push_back(svg);
 			svg.load(files[i].getAbsolutePath());
 			auto path = svg.getPathAt(0);
