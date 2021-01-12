@@ -13,6 +13,7 @@ class ofApp : public ofBaseApp{
 		int scallopRadius = 40;
 		float xSpacing = 1.8;
 		float ySpacing = 1.8;
+		void makePieces();
 		void setup();
 		bool floodFillTest(i3tuple circle, vector<i3tuple>& circles);
 		int overlapped(i3tuple c1, i3tuple c2);
@@ -22,6 +23,7 @@ class ofApp : public ofBaseApp{
 		float circleOverlapChord(const i3tuple c1, const i3tuple c2);
 		float circleOverlap(i3tuple c1, i3tuple c2);
 		void regularScallop();
+		void genGrid();
 		void makeScallop();
 		bool noCircleIntersect(i3tuple c1);
 		ofPoint segEdgesIntersect(pair<ofPoint, ofPoint> segment);
@@ -54,6 +56,7 @@ class ofApp : public ofBaseApp{
 		vector<ofxSVG> knobsvgs;
 		vector<string> knobNames;
 		void addCircle(i3tuple circle);
+		void concentric();
 		void intersections();
 		bool intersections(ofPolyline & testEdge, int index);
 		void addColor();

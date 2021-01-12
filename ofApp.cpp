@@ -10,6 +10,7 @@ int scallopR = 350;
 ofImage c;
 //--------------------------------------------------------------
 ofPoint segsegintersect(const ofPoint& a, const ofPoint& b, const ofPoint& c, const ofPoint& d) {
+	
 	float tnum = (a.x - c.x) * (c.y - d.y) - (a.y - c.y) * (c.x - d.x);
 	float tdenom = (a.x - b.x) * (c.y - d.y) - (a.y - b.y) * (c.x - d.x);
 	float unum = (a.x - b.x) * (a.y - c.y) - (a.y - b.y) * (a.x - c.x);
@@ -17,7 +18,93 @@ ofPoint segsegintersect(const ofPoint& a, const ofPoint& b, const ofPoint& c, co
 	float t = tnum / tdenom;
 	return ofPoint(a.x + t * (b.x - a.x), a.y + t * (b.y - a.y));
 	
+	}
+ofPoint segIntersection(
+	const ofPoint& p0, 
+	const ofPoint& p1, 
+	const ofPoint& p2, 
+	const ofPoint& p3
+	)
+{
+	ofPoint d0 = p1 - p0;
+	ofPoint d1 = p3 - p2;
+
+	float a = d0.dot(d0);
+	float b = -d0.dot(d1);
+	float c = d0.dot(d1);
+	float d = -d1.dot(d1);
+	float e = (p2 - p0).dot(d0);
+	float f = (p2 - p0).dot(d1);
+	float det = a * d - b * c;
+	float s, t;
+	if (det != 0.0) {
+		det = 1.0 / det;
+		s = (e * d - b * f) * det;
+		t = (a * f - e * c) * det;
+	}
+	else {	// d0 and d1 parallel
+		float s0 = p0.dot(d0);
+		float s1 = p1.dot(d0);
+		float t0 = p2.dot(d0);
+		float t1 = p3.dot(d0);
+		bool flip0 = false;
+		bool flip1 = false;
+
+		if (s0 > s1) { float f = s0; s0 = s1; s1 = f; flip0 = true; }
+		if (t0 > t1) { float f = t0; t0 = t1; t1 = f; flip1 = true; }
+
+		if (s0 >= t1) {
+			s = !flip0 ? 0.0 : 1.0;
+			t = !flip1 ? 1.0 : 0.0;
+		}
+		else if (t0 >= s1) {
+			s = !flip0 ? 1.0 : 0.0;
+			t = !flip1 ? 0.0 : 1.0;
+		}
+		else {		// overlap
+			float mid = (s0 > t0) ? (s0 + t1) * 0.5 : (t0 + s1) * 0.5;
+			s = (s0 == s1) ? 0.5 : (mid - s0) / (s1 - s0);
+			t = (t0 == t1) ? 0.5 : (mid - t0) / (t1 - t0);
+		}
+	}
+	if (s < 0.0) {
+		s = 0.0;
+		t = f / d;
+	}
+	else if (s > 1.0) {
+		s = 1.0;
+		t = (f + b) / d;
+	}
+	if (t < 0.0) {
+		t = 0.0;
+		if (e < 0) {
+			s = 0.0;
+		}
+		else if (e > a) {
+			s = 1.0;
+		}
+		else {
+			s = e / a;
+		}
+	}
+	else if (t > 1.0) {
+		t = 1.0;
+		if (e - b < 0.0) {
+			s = 0.0;
+		}
+		else if ((e - b) > a) {
+			s = 1.0;
+		}
+		else {
+			s = (e - b) / a;
+		}
+	}
+
+	float b0 = 1.0 - s;
+	float b1 = s;
+	return p0 + s * d0;
 }
+
 // Given three colinear points p, q, r, the function checks if 
 // point q lies on line segment 'pr' 
 bool onSegment(ofPoint p, ofPoint q, ofPoint r)
@@ -56,7 +143,7 @@ bool doIntersect(ofPoint p1, ofPoint q1, ofPoint p2, ofPoint q2)
 	int o2 = orientation(p1, q1, q2);
 	int o3 = orientation(p2, q2, p1);
 	int o4 = orientation(p2, q2, q1);
-
+	
 	// General case 
 	if (o1 != o2 && o3 != o4)
 		return true;
@@ -75,6 +162,65 @@ bool doIntersect(ofPoint p1, ofPoint q1, ofPoint p2, ofPoint q2)
 	if (o4 == 0 && onSegment(p2, q1, q2)) return true;
 
 	return false; // Doesn't fall in any of the above cases 
+}
+void ofApp::concentric() {
+	int bigR = 300;
+	int center = 400;
+	int r = 30;
+	for (int i = 0; i < 8; ++i) {
+
+		auto circle = make_tuple(center, center, r);
+		addCircle(circle);
+		circles.push_back(circle);
+		if(r>30){
+			int offset = 0;
+		for(int theta = 0;theta<360;theta+=50*360./(2*3.15)/r){
+
+			if (theta == 0) {
+				offset = ofRandom(0, 360);
+			}
+		ofPolyline radialEdge;
+		float rad = float(theta + offset) * 2 * 3.14159 / 360.;
+		ofPoint p1 = { center + (r+3) * cos(rad),center + (r+3) * sin(rad) };
+		ofPoint p2 = { center + (r - 43) * cos(rad),center + (r-43) * sin(rad) };
+		radialEdge.addVertex(p1);
+		radialEdge.addVertex(p2);
+		radialEdge = radialEdge.getResampledByCount(30);
+		edges.push_back(radialEdge);
+		}
+		}
+		r += 40;
+	}
+}
+void ofApp::makePieces() {
+	//vertices : round to 1 pix , list endpoints w/ directed edges and direction
+	map<pair<int,int>, vector<pair<int,bool>>> vertices;
+	for (int i = 0; i < edges.size();++i) {
+		auto e = edges[i];
+		auto p0 = e[0];
+		auto r0 = make_pair(int(p0.x), int(p0.y));
+		auto p1 = e[e.size()-1];
+		auto r1 = make_pair(int(p1.x), int(p1.y));
+		auto key0 = vertices.find(r0);
+		auto key1 = vertices.find(r1);
+		if (key0 != vertices.end()) {
+			vertices[r0].push_back(make_pair(i, true));
+		}
+		else {
+			vector<pair<int, bool>> a;
+			a.push_back(make_pair(i, true));
+			vertices[r0] = a;
+		}
+		if (key1 != vertices.end()) {
+			vertices[r1].push_back(make_pair(i, false));
+		}
+		else {
+			vector<pair<int, bool>> a;
+			a.push_back(make_pair(i, false));
+			vertices[r1] = a;
+		}
+	}
+
 }
 void ofApp::setup() {
 	gui.setup();
@@ -343,6 +489,42 @@ void ofApp :: regularScallop() {
 		}
 	}
 }
+float overlapRatio = .5;
+float minRadius = 20;
+float maxRadius = 40;
+void ofApp::genGrid() {
+	scallopR = 100;
+	vector<ofPolyline> holdEdges;
+	overlapRatio = 0;
+	for(int i=0;i<10;++i){
+		overlapRatio += .1;
+		minRadius = 20;
+		maxRadius = 40;
+	for(int j=0;j<10;++j){
+		minRadius += 2;
+		maxRadius += 2;
+		int cx = i * 300;
+		int cy = j * 300;
+	makeScallop();
+	intersections();
+	clean();
+	addKnobs();
+	draw();
+	for (auto line : edges) {
+		line.translate(ofPoint(cx, cy));
+		holdEdges.push_back(line);
+	}
+	edges.clear();
+	circles.clear();
+	boundingBoxes.clear();
+	drawBoundingBoxes = false;
+	
+	c.clear();
+	}
+	}
+	edges = holdEdges;
+	exportPDF("grid.pdf");
+}
 void ofApp::makeScallop() {
 	int center = 400;
 
@@ -366,14 +548,14 @@ void ofApp::makeScallop() {
 		auto base = ofPoint(cos(theta) , sin(theta));
 		auto ray = base*2.*cmax+ofPoint(center,center);
 		bool intersected = false;
-		int r = rand() % 25 + 30;
+		int r = rand() % int(maxRadius-minRadius) + minRadius;
 		if(i< 5000){
 		while (!intersected) {
 			intersected = pointCircle(ray);
 			ray -= base*4.;
 			
 		}
-		ray += base * (rand() % (r /2) + 10);
+		ray += base * (rand() % int(r*overlapRatio) + 4);
 		}
 		else {
 			ray = ofPoint(ofRandom(100, 700), ofRandom(100, 700));
@@ -967,7 +1149,12 @@ void ofApp::draw(){
 			showColor = false;
 
 		}
-		
+		if (ImGui::Button("gen grid")) {
+			genGrid();
+		}
+		if (ImGui::Button("Concentric")) {
+			concentric();
+		}
 		ImGui::InputText("filename", str0, IM_ARRAYSIZE(str0));
 		if (ImGui::Button("Save")) {
 			exportPDF(string(str0));
@@ -980,6 +1167,9 @@ void ofApp::draw(){
 		if (ImGui::Button("Scallop")) {
 			makeScallop();
 		}
+		ImGui::InputFloat("overlap", &overlapRatio);
+		ImGui::InputFloat("min radius", &minRadius);
+		ImGui::InputFloat("max radius", &maxRadius);
 		ImGui::InputInt("Radius", & scallopRadius);
 		ImGui::InputFloat("x Spacing", & xSpacing);
 		ImGui::InputFloat("y Spacing", & ySpacing);
@@ -1180,7 +1370,7 @@ for (auto e = edges.begin(); e != edges.end();) {
 				minD1 = min(cMin1, minD1);
 				if (cMin0 < 1 && cMin1 < 1) {
 					e = edges.erase(e);
-					cout << "deleted an edge for completely overlapping" << endl;
+					//cout << "deleted an edge for completely overlapping" << endl;
 					erased = true;
 					break;
 				}
@@ -1189,7 +1379,7 @@ for (auto e = edges.begin(); e != edges.end();) {
 			if (minD0 > 1 || minD1 > 1 && erased ==false) {
 				e = edges.erase(e);
 				erased = true;
-				cout << "deleted an edge for dangling" << endl;
+				//cout << "deleted an edge for dangling" << endl;
 			}
 
 
@@ -1208,6 +1398,7 @@ void ofApp::intersections() {
 			auto e2 = &edges[j];
 			auto bbox2 = e2->getBoundingBox();
 			if (bbox1.intersects(bbox2)) {
+				
 				auto v1 = e1->getVertices();
 				auto v2 = e2->getVertices();
 				int extra1 = 1;
@@ -1239,6 +1430,12 @@ void ofApp::intersections() {
 						
 						if (intersects) {
 							ofPoint intersection = segsegintersect(va, vb, vc, vd);
+							//intersection = segIntersection(va, vb, vc, vd);
+							if(intersection.x>=min(va.x,vb.x)-5 && intersection.x>=min(vc.x,vd.x) - 5 &&
+								intersection.x<= max(va.x, vb.x)+5&& intersection.x<= max(vc.x, vd.x) + 5 &&
+								intersection.y >=min(va.y, vb.y) - 5 && intersection.y >= min(vc.y, vd.y) - 5 &&
+								intersection.y <= max(va.y, vb.y) + 5 && intersection.y<= max(vc.y, vd.y) + 5
+								){ 
 							if (cutPointMap.count(i)) {
 								cutPointMap[i].push_back(make_pair(k, intersection));
 							}
@@ -1255,6 +1452,7 @@ void ofApp::intersections() {
 								p.push_back(make_pair(l, intersection));
 								cutPointMap[j] = p;
 							}
+						}
 						}
 
 					}
