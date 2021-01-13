@@ -701,6 +701,32 @@ vector<ofPolyline> ofApp::scatterAddCircle(i3tuple circle) {
 	}
 	return circleSegs;
 }
+bool insideHex(ofPoint p, int size) {
+	float x = 2./3.*p.x/size;
+	float y = (-1. / 3. * p.x + sqrt(3) / 3. * p.y) / size;
+	float z = -x - y;
+	float rx = round(x);
+	float ry = round(y);
+	float rz = round(z);
+	float x_diff = abs(x - rx);
+	float y_diff = abs(y - ry);
+	float z_diff = abs(z - rz);
+	if (x_diff > y_diff && x_diff > z_diff) {
+		rx - -ry - rz;
+	}
+	else {
+		if (y_diff > z_diff) {
+			ry = -rx - rz;
+		}
+		else {
+			rz = -rx - ry;
+	}
+}
+	if (rx == rz == ry == 0) {
+		return true;
+	}
+	return false;
+}
 void ofApp::infinity() {
 	cout << " hexagons" << endl;
 	float size = 150;
@@ -710,11 +736,9 @@ void ofApp::infinity() {
 	int o = 400;
 	ofPoint center(o, o);
 	vector < ofPoint> scatterPoints;
-	for (int tries = 0; tries < 100000; ++tries) {
-		ofPoint p(ofRandom(-1200, 1200), ofRandom(-1200, 1200));
-		float q = 2./3.*(p.x) / size;
-		float r = (-1. / 3. * p.x + sqrt(3) / 3. * p.y) / size;
-		if (abs(q)>=1 || abs(r)>=1) {
+	for (int tries = 0; tries < 1000; ++tries) {
+		ofPoint p(ofRandom(-400, 400), ofRandom(-1200, 1200));
+		if (!insideHex(p, size)) {
 			continue;
 		}
 		p = p + center;
