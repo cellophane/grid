@@ -20,8 +20,12 @@ class ofApp : public ofBaseApp{
 		int overlapped1(i3tuple c1, i3tuple c2);
 		bool testCircleCheap(i3tuple circle, vector<i3tuple>& circles);
 		bool testCircle(i3tuple circle, vector<i3tuple>& circles);
+		bool testCircle(i3tuple circle);
 		float circleOverlapChord(const i3tuple c1, const i3tuple c2);
 		float circleOverlap(i3tuple c1, i3tuple c2);
+		void scatterCircles();
+		vector<ofPolyline> scatterAddCircle(i3tuple circle);
+		void infinity();
 		void regularScallop();
 		void genGrid();
 		void makeScallop();
@@ -29,6 +33,7 @@ class ofApp : public ofBaseApp{
 		ofPoint segEdgesIntersect(pair<ofPoint, ofPoint> segment);
 		void addLotsofCircles();
 		void packCircles();
+		void randomColor();
 		void update();
 		void draw();
 

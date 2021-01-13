@@ -8,6 +8,7 @@ vector<ofRectangle> boundingBoxes;
 bool drawBoundingBoxes = false;
 int scallopR = 350;
 ofImage c;
+float pi = 3.14159;
 //--------------------------------------------------------------
 ofPoint segsegintersect(const ofPoint& a, const ofPoint& b, const ofPoint& c, const ofPoint& d) {
 	
@@ -291,6 +292,9 @@ bool ofApp::floodFillTest(i3tuple circ, vector<i3tuple>& circles){
 float distance(int x1, int x2, int y1, int y2) {
 	return sqrt(pow((x1 - x2), 2) + pow((y1 - y2), 2));
 }
+float distance(ofPoint p1, ofPoint p2) {
+	return sqrt(pow((p1.x - p2.x), 2) + pow((p1.y - p2.y), 2));
+}
 int ofApp::overlapped(i3tuple c1, i3tuple c2) {
 	float d = sqrt(pow((get<0>(c2) - get<0>(c1)), 2) + pow((get<1>(c2) - get<1>(c1)), 2));
 	float r = (float)get<2>(c1);
@@ -386,6 +390,34 @@ bool ofApp::testCircle(i3tuple circle, vector<i3tuple>& circles) {
 	}
 	return false;
 }
+
+bool ofApp::testCircle(i3tuple circle) {
+	int overlap = 0;
+	bool ok = true;
+	ofPoint p0(get<0>(circle), get<1>(circle));
+	int r1 = get<2>(circle);
+	for (auto circ : circles) {
+		ofPoint p1(get<0>(circ), get<1>(circ));
+		int r2 = get<2>(circ);
+		float d = p0.distance(p1);
+		if (abs(d - r1 - r2) < min(r1, r2) / 2 || abs(d + r1 - r2) < min(r1, r2) / 2 || abs(d - r1 + r2) < min(r1, r2) / 2) {
+			return false;
+		}
+
+	}
+	auto oldEdges = edges;
+	addCircle(circle);
+	intersections();
+	for (ofPolyline edge : edges) {
+		if (edge.getLengthAtIndex(edge.size() - 1) < 10) {
+			edges = oldEdges;
+			return false;
+
+		}
+	}
+	edges = oldEdges;
+	return true;
+}
 float ofApp::circleOverlapChord(const i3tuple c1, const i3tuple c2) {
 	float d = sqrt(pow((get<0>(c2) - get<0>(c1)), 2) + pow((get<1>(c2) - get<1>(c1)), 2));
 	float r = (float)get<2>(c1);
@@ -419,6 +451,7 @@ bool pointCircle(ofPoint ray) {
 	return intersected;
 
 }
+
 int pointCircleIndex(ofPoint ray) {
 	bool intersected = false;
 	int index = -1;
@@ -433,6 +466,310 @@ int pointCircleIndex(ofPoint ray) {
 		}
 	}
 	return index;
+
+}
+void ofApp::scatterCircles() {
+	int minR = 40;
+	int maxR = 41;
+	int minD = 40;
+	int size = 300;
+	int center = 400;
+	vector<ofPoint> scatterPoints;
+	int origin = 400;
+	int maxY = 400;
+	int maxX = 400;
+	//spiral spacing
+	float theta = 0;
+	float sr = 0;
+	//scatterPoints.push_back(ofPoint(origin, origin));
+	/*
+	for (int i = 0; i < 1000; ++i) {
+		
+		
+		float x = cos(theta) *sr + origin;
+		float y = sin(theta) * sr + origin;
+		if (sr == 0) {
+			sr = minR;
+			theta = 1.25;
+		}
+		else{
+		theta += minR / sr * 1.25;
+		sr = theta / (2 * pi) * minR*.9+ minR;
+		}
+		if(distance(ofPoint(origin,origin),ofPoint(x,y))<size){
+		scatterPoints.push_back(ofPoint(x, y));
+		}
+	}
+	*/
+	cout << scatterPoints.size();
+	 //random points
+	/*
+	for (int tries = 0; tries < 100000; ++tries) {
+		int x = rand() % (size * 2) - size + center;
+		int y = rand() % (size * 2) - size + center;
+		ofPoint p(x, y);
+		bool ok = true;
+		for (auto p1 : scatterPoints) {
+			if (distance(p, p1) < minD) {
+				ok = false;
+				break;
+			}
+		}
+		if (ok) {
+			scatterPoints.push_back(p);
+		}
+	}*/
+	
+	//regular spacing
+	
+	
+	for (int y = origin; y < maxY + origin; y += minR * ySpacing) {
+		for (int x = origin; x < maxX + origin; x += minR * xSpacing) {
+			scatterPoints.push_back(ofPoint(x, y));
+		}
+	}
+	
+	
+	//in order 
+	/*
+	while (scatterPoints.size() > 0) {
+		int i = 0;
+		ofPoint p = scatterPoints[i];
+		scatterPoints.erase(scatterPoints.begin() + i);
+		int r = minR + rand() % (maxR - minR);
+		i3tuple circle = make_tuple(p.x, p.y, r);
+		auto circleSegs = scatterAddCircle(circle);
+		if (circleSegs.size() > 0) {
+			circles.push_back(circle);
+			for (auto e : circleSegs) {
+				edges.push_back(e);
+			}
+		}
+	}
+	*/
+	
+	//random ordering
+	
+	while (scatterPoints.size() > 0) {
+		int i = rand() % scatterPoints.size();
+		ofPoint p = scatterPoints[i];
+		scatterPoints.erase(scatterPoints.begin()+i);
+		int r = minR + rand() % (maxR - minR);
+		i3tuple circle = make_tuple(p.x, p.y, r);
+		auto circleSegs = scatterAddCircle(circle);
+		if(circleSegs.size()>0){
+		circles.push_back(circle);
+		for (auto e : circleSegs) {
+			edges.push_back(e);
+		}
+		}
+	}
+	
+	//greedy ordering
+	/*
+	int i = rand() % scatterPoints.size();
+	ofPoint p = scatterPoints[i];
+	scatterPoints.erase(scatterPoints.begin() + i);
+	int r = minR + rand() % (maxR - minR);
+	i3tuple circle = make_tuple(p.x, p.y, r);
+	auto circleSegs = scatterAddCircle(circle);
+	circles.push_back(circle);
+	for (auto e : circleSegs) {
+		edges.push_back(e);
+	}
+	
+	while (scatterPoints.size() > 0) {
+		int candidate = 0;
+		float minFound = 100000;
+		for (int i = 0; i < scatterPoints.size(); ++i) {
+			ofPoint p1 = scatterPoints[i];
+			float d = distance(p, p1);
+			if (d < minFound) {
+				ofPoint p = scatterPoints[i];
+				i3tuple circle = make_tuple(p.x, p.y, r);
+				auto circleSegs = scatterAddCircle(circle);
+				if(circleSegs.size()>0){
+				minFound = d;
+				candidate = i;
+				}
+			}
+		}
+
+		ofPoint p = scatterPoints[candidate];
+		scatterPoints.erase(scatterPoints.begin() + candidate);
+		/*
+		bool ok = true;
+		for (int tries = 0; tries < 1000; ++tries) {
+			ok = true;
+			int r = minR + rand() % (maxR - minR);
+			for (auto c : circles) {
+				ofPoint p0(get<0>(c), get<1>(c));
+				int r1 = get<2>(c);
+				float d = distance(p, p0);
+				if (abs(d - r - r1) < 9 || abs(d-r+r1)<18 || abs(d+r-r1)<18) {
+					ok = false;
+				}
+			}
+			if (ok) {
+				break;
+			}
+		}
+		if (!ok) {
+			cout << "lost a point" << endl;
+			continue;
+		}
+		*//*
+		i3tuple circle = make_tuple(p.x, p.y, r);
+		auto circleSegs = scatterAddCircle(circle);
+		if (circleSegs.size() > 0) {
+			circles.push_back(circle);
+			for (auto e : circleSegs) {
+				edges.push_back(e);
+			}
+		}
+	}
+	*/
+}
+vector<ofPolyline> ofApp::scatterAddCircle(i3tuple circle) {
+	vector<ofPolyline> circleSegs;
+	int x = get<0>(circle);
+	int y = get<1>(circle);
+	ofPoint center(x, y);
+	int r = get<2>(circle);
+	vector<float> startStop;
+	startStop.clear();
+	bool cIntersected = true;
+	bool intersected = false;
+	for (int i = 0; i < 2 * 3.14 * r; ++i) {
+		float checkTheta = i*1.0/r;
+		ofPoint pp = center + ofPoint(r * cos(checkTheta), r * sin(checkTheta));
+		intersected = pointCircle(pp);
+		if (cIntersected != intersected) {
+			startStop.push_back(checkTheta);
+			cIntersected = !cIntersected;
+		}
+	}
+	if (startStop.size() == 1) {
+		cout << "no intersection" << endl;
+		ofPolyline circ;
+		
+		for (int i = 0; i < 2 * 3.14 * r; ++i) {
+			float theta = i * 1.0 / r;
+			ofPoint pp = center + ofPoint(r * cos(theta), r * sin(theta));
+			circ.addVertex(pp);
+		}
+		circ.close();
+		circleSegs.push_back(circ);
+		return circleSegs;
+	}
+	if (startStop.size() == 0) {
+		cout << "fully intersected";
+		return circleSegs;
+	}
+	if (startStop[0] == 0) {
+		startStop[0] = startStop[startStop.size() - 1];
+		startStop.pop_back();
+	}
+	if (startStop.size() % 2 != 0) {
+		cout << "uneven";
+	}
+	bool added = false;
+	cout << startStop.size() << endl;
+	for (int seg = 0; seg < startStop.size(); seg += 2) {
+		float theta1 = startStop[seg];
+		float theta2 = startStop[seg + 1];
+		ofPolyline circleSeg;
+		while (theta2 < theta1) {
+			theta2 += 2 * 3.1416;
+		}
+		theta2 += 3. / float(r);
+		theta1 -= 3. / float(r);
+		while (theta1 < theta2) {
+			ofPoint p1 = center + ofPoint(r * cos(theta1), r * sin(theta1));
+			circleSeg.addVertex(p1);
+			theta1 += 1.0/r;
+		}
+		circleSeg.addVertex(center + ofPoint(r * cos(theta2), r * sin(theta2)));
+		if (circleSeg.getLengthAtIndex(circleSeg.size() - 1) < 30) {
+			continue;
+		}
+		added = true;
+		circleSegs.push_back(circleSeg);
+		//circleSeg = addKnob(edges.size() - 1);
+		//edges.pop_back();
+		//edges.push_back(circleSeg);
+	}
+	return circleSegs;
+}
+void ofApp::infinity() {
+	cout << " hexagons" << endl;
+	float size = 150;
+	int minD = 30;
+	int minR = 20;
+	int maxR = 40;
+	int o = 400;
+	ofPoint center(o, o);
+	vector < ofPoint> scatterPoints;
+	for (int tries = 0; tries < 100000; ++tries) {
+		ofPoint p(ofRandom(-1200, 1200), ofRandom(-1200, 1200));
+		float q = 2./3.*(p.x) / size;
+		float r = (-1. / 3. * p.x + sqrt(3) / 3. * p.y) / size;
+		if (abs(q)>=1 || abs(r)>=1) {
+			continue;
+		}
+		p = p + center;
+		bool ok = true;
+		for (auto p1 : scatterPoints) {
+			if (distance(p, p1) < minD) {
+				ok = false;
+				break;
+			}
+		}
+		if (ok) {
+			scatterPoints.push_back(p);
+		}
+
+	}
+	int i = rand() % scatterPoints.size();
+	ofPoint p = scatterPoints[i];
+	scatterPoints.erase(scatterPoints.begin() + i);
+	int r = minR + rand() % (maxR - minR);
+	i3tuple circle = make_tuple(p.x, p.y, r);
+	auto circleSegs = scatterAddCircle(circle);
+	circles.push_back(circle);
+	for (auto e : circleSegs) {
+		edges.push_back(e);
+	}
+
+	while (scatterPoints.size() > 0) {
+		int candidate = 0;
+		float minFound = 100000;
+		for (int i = 0; i < scatterPoints.size(); ++i) {
+			ofPoint p1 = scatterPoints[i];
+			float d = distance(p, p1);
+			if (d < minFound) {
+				ofPoint p = scatterPoints[i];
+				i3tuple circle = make_tuple(p.x, p.y, r);
+				auto circleSegs = scatterAddCircle(circle);
+				if (circleSegs.size() > 0) {
+					minFound = d;
+					candidate = i;
+				}
+			}
+		}
+
+		ofPoint p = scatterPoints[candidate];
+		scatterPoints.erase(scatterPoints.begin() + candidate);
+		i3tuple circle = make_tuple(p.x, p.y, r);
+		auto circleSegs = scatterAddCircle(circle);
+		if (circleSegs.size() > 0) {
+			circles.push_back(circle);
+			for (auto e : circleSegs) {
+				edges.push_back(e);
+			}
+		}
+	}
+	
 
 }
 void ofApp :: regularScallop() {
@@ -503,8 +840,8 @@ void ofApp::genGrid() {
 	for(int j=0;j<10;++j){
 		minRadius += 2;
 		maxRadius += 2;
-		int cx = i * 300;
-		int cy = j * 300;
+		int cx = i * 350;
+		int cy = j * 350;
 	makeScallop();
 	intersections();
 	clean();
@@ -743,7 +1080,7 @@ void ofApp::addLotsofCircles() {
 				medR = float(float(100 + rand() % 300) / 1000. * float(bigR));
 			}
 			else {
-				if (smallPacked < 10) {
+				if (smallPacked < 80) {
 					medR = float(float(100 + rand() % 100) / 1000. * float(bigR));
 				}
 				else {
@@ -759,14 +1096,8 @@ void ofApp::addLotsofCircles() {
 		int x = int(float(center) + (cos(float(theta) / (2 * 3.14))) * float(rOffset));
 		int y = int(float(center) + (sin(float(theta) / (2 * 3.14))) * float(rOffset));
 		circle = make_tuple(x, y, medR);
-		bool ok = testCircle(circle, circles);
+		bool ok = testCircle(circle);
 		if (ok) {
-			auto circle1 = make_tuple(x, y, medR + 5);
-			 ok = testCircle(circle1, circles);
-			if ( ok){
-				circle1 = make_tuple(x, y, medR - 5);
-				 ok = testCircle(circle1, circles);
-				 if (ok) {
 					 addCircle(circle);
 					 circles.push_back(circle);
 					 if (medR > float(bigR) * .5) {
@@ -784,12 +1115,13 @@ void ofApp::addLotsofCircles() {
 					 cout << "edges : " << edges.size() << endl;
 					 i = 0;
 				 }
-			}
-		}
+			
+		
 
 	}
 	
 }
+
 void ofApp::packCircles() {
 	
 	int bigR = 300;
@@ -855,6 +1187,68 @@ void ofApp::packCircles() {
 		}
 		if (added == numTiny) {
 			break;
+		}
+	}
+}
+//----------------------------------
+void ofApp::randomColor() {
+	ofFbo offscreen;
+	float scale = 1;
+	int w = 1000 * scale, h = 1000 * scale;
+	c.allocate(w, h, OF_IMAGE_COLOR);
+	offscreen.allocate(w, h);
+	offscreen.begin();
+	ofBackground(255);
+	ofSetColor(255);
+	ofDisableSmoothing();
+	ofPushMatrix();
+	ofColor eColor = { 0,0,0 };
+	ofSetColor(eColor);
+	for (auto e : edges) {
+		auto e1 = e;
+		e1.scale(scale, scale);
+		e1.draw();
+	}
+
+	offscreen.end();
+	offscreen.readToPixels(c.getPixels());
+	c.update();
+	ofColor B = c.getColor(0, 0);
+	int count = 0;
+	for (int j = 1; j < h - 1; ++j) {
+		for (int i = 1; i < w - 1; ++i) {
+
+			if (c.getColor(i, j) == B) {
+				 count += 1;
+				 cout << "adding color " << count << endl << "circles: " << circles.size();
+				float R = ofRandom(0, 255);
+				float G = ofRandom(0, 255);
+				ofColor rColor = ofColor::fromHsb(R, 255, 255);
+				vector<pair<int, int>> neighbors;
+				int cX = i;
+				int cY = j;
+				do {
+					if (c.getColor(cX, cY) == B) {
+						c.setColor(cX, cY, rColor);
+						if (cX < w - 1) {
+							neighbors.push_back(make_pair(cX + 1, cY));
+						}
+						if (cX > 1) {
+							neighbors.push_back(make_pair(cX - 1, cY));
+						}
+						if (cY < h - 1) {
+							neighbors.push_back(make_pair(cX, cY + 1));
+						}
+						if (cY > 1) {
+							neighbors.push_back(make_pair(cX, cY - 1));
+						}
+					}
+					cX = neighbors[neighbors.size() - 1].first;
+					cY = neighbors[neighbors.size() - 1].second;
+					neighbors.pop_back();
+
+				} while (neighbors.size() > 0);
+			}
 		}
 	}
 }
@@ -1115,6 +1509,8 @@ void ofApp::exportPDF(string filename)
 	offscreen.allocate(1000, 1000);
 	offscreen.begin();
 	ofBeginSaveScreenAsPDF(filename + to_string(edges.size())+".pdf");
+	c.update();
+	c.save(filename+to_string(edges.size())+".png");
 	ofSetColor({ 255,0,255 });
 	for (auto e : edges) {
 		e.draw();
@@ -1148,6 +1544,12 @@ void ofApp::draw(){
 			c.clear();
 			showColor = false;
 
+		}
+		if (ImGui::Button("scatter circle")) {
+			scatterCircles();
+		}
+		if (ImGui::Button("infinity circle")) {
+			infinity();
 		}
 		if (ImGui::Button("gen grid")) {
 			genGrid();
@@ -1207,7 +1609,7 @@ void ofApp::draw(){
 				
 
 				cout << "adding color";
-			addColor();
+			randomColor();
 			}
 			addedColor = true;
 			showColor = !showColor;
