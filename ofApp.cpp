@@ -1,4 +1,5 @@
 #include "ofApp.h"
+#include "PuzzleUtilities.h"
 ofPolyline knob;
 bool loadedKnobs = false;
 typedef std::tuple<int, int, int> i3tuple;
@@ -9,6 +10,9 @@ bool drawBoundingBoxes = false;
 int scallopR = 350;
 ofImage c;
 float pi = 3.14159;
+ofFbo pfbo;
+int w = 1000;
+int h = 1000;
 //--------------------------------------------------------------
 ofPoint segsegintersect(const ofPoint& a, const ofPoint& b, const ofPoint& c, const ofPoint& d) {
 	
@@ -195,34 +199,81 @@ void ofApp::concentric() {
 }
 void ofApp::makePieces() {
 	//vertices : round to 1 pix , list endpoints w/ directed edges and direction
-	map<pair<int,int>, vector<pair<int,bool>>> vertices;
-	for (int i = 0; i < edges.size();++i) {
+	
+	for (int i = 0; i < edges.size(); ++i) {
 		auto e = edges[i];
 		auto p0 = e[0];
-		auto r0 = make_pair(int(p0.x), int(p0.y));
-		auto p1 = e[e.size()-1];
-		auto r1 = make_pair(int(p1.x), int(p1.y));
-		auto key0 = vertices.find(r0);
-		auto key1 = vertices.find(r1);
-		if (key0 != vertices.end()) {
-			vertices[r0].push_back(make_pair(i, true));
+		e[0] = ofPoint(int(p0.x), int(p0.y));
+		auto p1 = e[e.size() - 1];
+		e[e.size() - 1] = ofPoint(int(p1.x), int(p1.y));
+	}
+	vector<int> bad;
+	for (int i = 0; i < edges.size(); ++i) {
+		auto p0 = edges[i][0];
+		auto p1 = edges[i][edges[i].size()-1];
+		bool bad1 = true;
+		bool bad2 = true;
+		for (int j = 0; j < edges.size(); ++j) {
+			if (j == i) {
+				continue;
+			}
+			auto e = edges[j];
+			if (e[0] == p0 || e[e.size() - 1] == p0) {
+				bad1 = false;
+			}
+			if (e[0] == p1 || e[e.size() - 1] == p1) {
+				bad2 = false;
+			}
 		}
-		else {
-			vector<pair<int, bool>> a;
-			a.push_back(make_pair(i, true));
-			vertices[r0] = a;
-		}
-		if (key1 != vertices.end()) {
-			vertices[r1].push_back(make_pair(i, false));
-		}
-		else {
-			vector<pair<int, bool>> a;
-			a.push_back(make_pair(i, false));
-			vertices[r1] = a;
+		if (bad1 || bad2) {
+			cout << "found a bad edge" << edges[i].getLengthAtIndex(edges[i].size() - 1) << endl;
+			bad.push_back(i);
 		}
 	}
+	cout << "hello" << endl;
+	sort(bad.begin(), bad.end(), greater<int>());
+	for (auto i : bad) {
+		edges.erase(edges.begin()+i);
+	}
+	//
+	cout << "making lines " << endl;
+	for (auto e : edges) {
+		vector<int> line;
+		line.clear();
+		array<float, 2> firstPoint;
+		firstPoint =  { e[0].x, e[0].y };
+		auto it = find(pts.begin(), pts.end(), firstPoint);
+		if (it != pts.end()) {
+			line.push_back(it - pts.begin());
+		}
+		else {
+			pts.push_back(firstPoint);
+			line.push_back(pts.size() - 1);
+		}
+		for (int i = 1; i < e.size()-1; ++i) {
+			pts.push_back({ e[i].x,e[i].y });
+			line.push_back(pts.size() - 1);
+		}
+		array<float, 2> lastPoint;
+		lastPoint = { e[e.size() - 1].x, e[e.size() - 1].y };
+		it = find(pts.begin(), pts.end(), lastPoint);
+		if (it != pts.end()) {
+			line.push_back(it - pts.begin());
+		}
+		else {
+			pts.push_back(lastPoint);
+			line.push_back(pts.size() - 1);
+		}
+		lines.push_back(line);
+	}
+	cout << "calling linestopieces" << endl;
+	cout << linesToPieces(pts, lines, pieces);
+	cout << "lines : " << lines.size() << endl;
+	cout << "pts: " << pts.size() << endl;
+	cout << "pieces: " << pieces.size() << endl;
 
 }
+
 void ofApp::setup() {
 	gui.setup();
 	srand(time(NULL));
@@ -236,6 +287,149 @@ void ofApp::setup() {
 	vector<ofPolyline> newEdges;
 
 	//edges = newEdges;
+	
+}
+void ofApp::makeTextures() {
+	float scale = 300. / 72.;
+	string path = "/scans/";
+	ofDirectory dir(path);
+	dir.allowExt("tif");
+	dir.listDir();
+	ofImage puzzleTextured;
+	puzzleTextured.allocate(int(scale * w), int(scale * h),OF_IMAGE_COLOR_ALPHA);
+	
+	pfbo.allocate(int(scale * w), int(scale * h), GL_RGBA,1);
+	pfbo.begin();
+	ofClear(255,255);
+	pfbo.end();
+;
+	int textureIndex = 0;
+	for (auto piece : pieces) {
+		float xmin = 10000;
+		float ymin = 10000;
+		ofPolyline pieceLine;
+		pieceLine.clear();
+
+		ofClear(0, 0);
+		ofBeginShape();
+		ofSetColor(255, 255);
+		
+		for (pair<int, bool> e : piece) {
+			int ind = e.first;
+			bool reverse = e.second;
+			auto verts = edges[ind].getVertices();
+			if (reverse) {
+				for (auto it = verts.rbegin(); it != verts.rend(); ++it)
+				{
+					pieceLine.addVertex(*it);
+					ofVertex(it->x*scale, it->y*scale);
+				}
+			}
+			else {
+				for (auto it = verts.begin(); it != verts.end(); ++it) {
+					pieceLine.addVertex(*it);
+					ofVertex(it->x * scale, it->y * scale);
+				}
+			}
+		}
+		ofEndShape();
+		if (piece.size() > 30) {
+			if (pieceLine.getBoundingBox().getWidth() > 72*3 && pieceLine.getBoundingBox().getHeight() > 72 * 3) {
+				continue;
+			}
+		}
+		
+		pieceLine.scale(scale, scale);
+
+		auto bBox = pieceLine.getBoundingBox();
+		ofPoint offset = bBox.getTopLeft();
+		ofImage cTexture;
+		cTexture.load(dir.getPath(textureIndex));
+	
+		cTexture.setImageType(OF_IMAGE_COLOR_ALPHA);
+	
+		textureIndex = rand() % dir.size();
+		ofFbo mask;
+		mask.allocate(cTexture.getWidth(), cTexture.getHeight(), GL_RGBA,1);
+		mask.begin();
+		ofDisableAntiAliasing();
+		ofClear(0);
+		ofSetColor(255);
+		ofSetLineWidth(2);
+		ofNoFill();
+		ofBeginShape();
+
+		for (int lIndex = 0; lIndex < pieceLine.size(); ++lIndex) {
+			ofVertex(pieceLine[lIndex].x - offset.x, pieceLine[lIndex].y - offset.y);
+		}
+		ofEndShape();
+		ofFill();
+		ofBeginShape();
+		
+		for (int lIndex = 0; lIndex < pieceLine.size(); ++lIndex) {
+			ofVertex(pieceLine[lIndex].x-offset.x, pieceLine[lIndex].y-offset.y);
+		}
+		ofEndShape();
+		mask.end();
+	
+		//cTexture.resize(bBox.getWidth(), bBox.getHeight());
+		cTexture.getTexture().setAlphaMask(mask.getTexture());
+
+		cTexture.setImageType(OF_IMAGE_COLOR_ALPHA);
+		for (int i = 0; i < cTexture.getWidth(); ++i) {
+			for (int j = 0; j < cTexture.getHeight(); ++j) {
+				ofColor c = cTexture.getColor(i, j);
+				if (c == ofColor({ 0,0,0 })) {
+					cTexture.setColor(i, j, { 0,0,0,0 });
+				}
+			}
+		}
+		pfbo.begin();
+		ofEnableAlphaBlending();
+		ofSetColor(255, 255);
+		cTexture.getTexture().draw(offset.x, offset.y);
+		pfbo.end();
+
+
+	}
+	auto pixels = puzzleTextured.getPixels();
+	pfbo.readToPixels(pixels);
+	puzzleTextured.setFromPixels(pixels);
+	puzzleTextured.save("test.png");
+}
+void ofApp::drawPieces() {
+	
+	int pieceColor = 0;
+	for (auto piece : pieces) {
+		ofColor c = ofColor::fromHsb(pieceColor, 255, 255);
+		pieceColor += 6;
+		pieceColor = pieceColor % 255;
+		ofPolyline pieceLine;
+		ofSetColor(c);
+	
+		ofBeginShape();
+		for (pair<int, bool> e : piece) {
+			int ind = e.first;
+			bool reverse = e.second;
+			auto verts = edges[ind].getVertices();
+
+			if (reverse) {
+				for (auto it = verts.rbegin(); it != verts.rend(); ++it)
+				{
+					ofVertex(it->x,it->y);
+					//pieceLine.addVertex(*it);
+				}
+			}
+			else {
+				for (auto it = verts.begin(); it != verts.end(); ++it) {
+					ofVertex(it->x,it->y);
+					//pieceLine.addVertex(*it);
+				}
+			}
+		}
+		ofEndShape();
+		pieceLine.setClosed(true);
+	}
 	
 }
 void ofApp::addKnobs() {
@@ -1553,7 +1747,7 @@ bool addedColor = false;
 bool showColor = false;
 
 void ofApp::draw(){
-	if(!addedColor){
+	if(!addedColor && !doDrawPieces){
 	drawEdges();
 	}
 
@@ -1609,6 +1803,12 @@ void ofApp::draw(){
 		if (ImGui::Button("Clean")) {
 			clean();
 		}
+		if (ImGui::Button("Make Pieces")) {
+			makePieces();
+			cout << "making textures";
+			makeTextures();
+			cout << "made textures";
+		}
 		if (ImGui::Button("draw knob bounding boxes")) {
 			drawBoundingBoxes = !drawBoundingBoxes;
 		}
@@ -1642,8 +1842,16 @@ void ofApp::draw(){
 			ofSetColor(0xffffff);
 			c.draw(0, 0);
 		}
+		if (ImGui::Button("draw pieces")) {
+			doDrawPieces = !doDrawPieces;
+		}
+		if (doDrawPieces) {
+			cout << "drawing pieces";
+			drawPieces();
+		}
 	}
 	gui.end();
+	pfbo.draw(0,0);
 }
 void ofApp::drawKnobs() {
 	int x = 0;
@@ -1813,6 +2021,97 @@ for (auto e = edges.begin(); e != edges.end();) {
 		}
 		if (erased == false) { ++e; }
 	}
+for (int i = 0; i < edges.size(); ++i) {
+	auto e = edges[i];
+	auto p0 = e[0];
+	auto p1 = e[e.size() - 1];
+	float minD0 = 10000;
+	float minD1 = 10000;
+	ofPoint newp0;
+	ofPoint newp1;
+	for (int j = 0; j < edges.size(); ++j) {
+		if (j == i) {
+			continue;
+		}
+		auto e1 = edges[j];
+		auto P0 = e1[0];
+		auto P1 = e1[e1.size() - 1];
+		float d00 = distance(p0, P0);
+		float d01 = distance(p0, P1);
+		float d10 = distance(p1, P0);
+		float d11 = distance(p1, P1);
+		if (d00 < minD0) {
+			minD0 = d00;
+			newp0 = P0;
+		}
+		if (d01 < minD0) {
+			minD0 = d01;
+			newp0 = P1;
+		}
+		if (d10 < minD1) {
+			minD1 = d10;
+			newp1 = P0;
+		}
+		if (d11 < minD1) {
+			minD1 = d11;
+			newp1 = P1;
+		}
+
+	}
+	if (minD0 > 0) {
+		edges[i][0] = newp0;
+	}
+	if (minD1 > 0) {
+		edges[i][edges[i].size() - 1] = newp1;
+	}
+}
+
+for (int i = 0; i < edges.size(); ++i) {
+	auto e = edges[i];
+	auto p0 = e[0];
+	auto p1 = e[e.size() - 1];
+	float minD0 = 10000;
+	float minD1 = 10000;
+	ofPoint newp0;
+	ofPoint newp1;
+	int countNeighbors0 = 0;
+	pair<int, bool> neighbor0;
+	int countNeighbors1 = 0;
+	pair<int, bool> neighbor1;
+	for (int j = 0; j < edges.size(); ++j) {
+		if (j == i) {
+			continue;
+		}
+		auto e1 = edges[j];
+		auto P0 = e1[0];
+		auto P1 = e1[e1.size() - 1];
+		float d00 = distance(p0, P0);
+		float d01 = distance(p0, P1);
+		float d10 = distance(p1, P0);
+		float d11 = distance(p1, P1);
+		if (d00 == 0) {
+			neighbor0 = make_pair(j, true);
+			countNeighbors0 += 1;
+		}
+		if (d01 < minD0) {
+			neighbor0 = make_pair(j, false);
+			countNeighbors0 += 1;
+		}
+		if (d10 < minD1) {
+			neighbor1 = make_pair(j, true);
+			countNeighbors1 += 1;
+		}
+		if (d11 < minD1) {
+			neighbor1 = make_pair(j, false);
+			countNeighbors1 += 1;
+		}
+
+	}
+	if (countNeighbors0 == 1) {
+
+	}
+}
+
 }
 void ofApp::intersections() {
 	map<int, vector<pair<int, ofPoint>>> cutPointMap;

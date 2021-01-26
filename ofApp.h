@@ -14,7 +14,10 @@ class ofApp : public ofBaseApp{
 		float xSpacing = 1.8;
 		float ySpacing = 1.8;
 		void makePieces();
+		double threePointAngle(ofPoint P1, ofPoint P2, ofPoint P3);
 		void setup();
+		void makeTextures();
+		void drawPieces();
 		bool floodFillTest(i3tuple circle, vector<i3tuple>& circles);
 		int overlapped(i3tuple c1, i3tuple c2);
 		int overlapped1(i3tuple c1, i3tuple c2);
@@ -60,6 +63,10 @@ class ofApp : public ofBaseApp{
 		vector<ofPath> knobPaths;
 		vector<ofxSVG> knobsvgs;
 		vector<string> knobNames;
+		vector<vector<pair<int, bool>>> pieces;
+		vector<array<float, 2> > pts;
+		vector<vector<int> > lines;
+		bool doDrawPieces = false;
 		void addCircle(i3tuple circle);
 		void concentric();
 		void intersections();
